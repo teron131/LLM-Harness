@@ -3,6 +3,17 @@
 from langchain.tools import BaseTool, tool
 
 from ..tools.web import webloader, webloader_tool
+from .orchestrator import (
+    Orchestrator,
+    StageInvocation,
+    StageResult,
+    coerce_stage_result,
+    make_orchestrator_tools,
+    create_orchestrator,
+    stage_tool_from_callable,
+    stage_tool_from_graph,
+    stage_tool_from_react_agent,
+)
 from .youtube import youtubeloader
 
 
@@ -22,7 +33,16 @@ def get_tools() -> list[BaseTool]:
 
 
 __all__ = [
+    "Orchestrator",
+    "StageInvocation",
+    "StageResult",
+    "coerce_stage_result",
+    "create_orchestrator",
     "get_tools",
+    "make_orchestrator_tools",
+    "stage_tool_from_callable",
+    "stage_tool_from_graph",
+    "stage_tool_from_react_agent",
     "webloader",
     "webloader_tool",
     "youtubeloader",
