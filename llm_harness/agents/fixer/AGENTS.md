@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Generic single-file fixer workflow that iteratively edits UTF-8 text using hashline references and review-driven loop control.
+- Generic single-file fixer workflow that iteratively edits UTF-8 text using structured apply-patch edits and review-driven loop control.
 
 ## What Module Is For
 
@@ -23,13 +23,13 @@
 
 - Primary API: `fix_file`
 - Stable control loop: `review -> fix -> review`
-- Edit primitive: `HashlineEditResponse` applied through `SandboxFS`
+- Edit primitive: structured apply-patch edit applied through `SandboxFS`
 
 ## Key takeaways per location
 
 - `fixer.py` normalizes the target path and launches the graph with a sandbox root.
 - `graph.py` keeps the loop bounded and explicit; stop conditions live in graph state, not only in prompts.
-- `nodes/fix.py` asks for structured hashline edits, applies them, and retries once with a smaller repair prompt if refs go stale.
+- `nodes/fix.py` asks for a structured apply-patch edit and applies it after format checks.
 - `nodes/review.py` converts the current file into a compact DONE/REMAINING checklist and decides whether to continue or stop.
 - `nodes/common.py` keeps usage totals and restores the best reviewed in-memory snapshot if the fixer runs out of turns.
 

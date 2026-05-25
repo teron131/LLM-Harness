@@ -12,7 +12,6 @@
 
 - `llm_harness/tools/fs/fs_tools.py -> SandboxFS/make_fs_tools`
 - `llm_harness/tools/fs/apply_patch.py -> parse_single_file_patch_with_stats/apply_patch_chunks_to_text`
-- `llm_harness/tools/fs/hashline.py -> HashlineEdit/edit_hashline/format_hashline_text`
 - `llm_harness/tools/fs/fast_copy.py -> TagRange/tag_content/filter_content/untag_content`
 
 ## Repository snapshot
@@ -28,9 +27,8 @@
 ## Key takeaways per location
 
 - `SandboxFS.resolve` is the trust boundary: strips/normalizes user paths, rejects traversal, and enforces root containment.
-- `make_fs_tools` creates LangChain tools for read/write/patch/hashline/edit operations inside the sandbox.
+- `make_fs_tools` creates LangChain tools for read/write/patch/`ed` operations inside the sandbox.
 - `apply_patch.py` parses the single-file patch format and applies chunks with tolerant whitespace and punctuation matching.
-- `hashline.py` renders stable `LINE#HASH` references and validates edits against current file contents.
 - `fast_copy.py` provides deterministic line-tag transforms used to remove identified garbage transcript ranges.
 
 ## Project-specific conventions and rationale
@@ -38,15 +36,13 @@
 - Keep sandbox path checks strict and centralized in `SandboxFS`.
 - Preserve UTF-8 text semantics for read/write helpers.
 - Keep `apply_patch.py` single-file scoped; callers should not assume multi-file patch support.
-- Treat hashline refs as model-facing coordination data, not persisted file content.
 - `ed`-based editing exists for LLM-friendly line patching; non-zero `ed` exit codes must surface as runtime errors.
 - Tag filtering operates on inclusive ranges and keeps untouched order stable.
 
 ## Syntax Relationships
 
-- `fs_tools.py -> make_fs_tools -> fs_read_text/fs_write_text/fs_patch/fs_read_hashline/fs_edit_hashline/fs_edit_with_ed`
+- `fs_tools.py -> make_fs_tools -> fs_read_text/fs_write_text/fs_patch/fs_edit_with_ed`
 - `fs_tools.py -> SandboxFS.apply_patch -> apply_patch.parse_single_file_patch_with_stats/apply_patch.apply_patch_chunks_to_text`
-- `fs_tools.py -> SandboxFS.read_hashline/edit_hashline -> hashline.format_hashline_text/hashline.edit_hashline`
 - `fs_tools.py -> fs_edit_with_ed -> subprocess.run([ed, ...])`
 - `fast_copy.py -> filter_content -> TagRange(start_tag/end_tag)`
 - `agents/youtube/summarizer.py -> tag_content/filter_content/untag_content`

@@ -78,8 +78,7 @@ class _FixerProgress:
 
 @dataclass(frozen=True, slots=True)
 class _FixPassResult:
-    edits: list
-    raw_text: str
+    patch: str | None
     tokens_in: int = 0
     tokens_out: int = 0
     cost: float = 0.0

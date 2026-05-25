@@ -76,7 +76,6 @@ def make_orchestrator_tools(
     else:
         fs_tools = _tool_map(make_fs_tools(root_dir=resolved_root_dir))
         tools.append(fs_tools["fs_read_text"])
-        tools.append(fs_tools["fs_read_hashline"])
     if include_sql:
         tools.extend(make_sql_tools(root_dir=resolved_root_dir))
     if include_tabular:

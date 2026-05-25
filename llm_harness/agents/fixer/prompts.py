@@ -11,9 +11,9 @@ Hard constraints:
 - For structured files containing long embedded text blocks, prefer the smallest local fix that resolves a concrete issue; do not rewrite large text values just to improve formatting, grammar, or stylistic consistency.
 - For prose or plain-text formats, preserve surrounding layout and conventions unless the task clearly requires reflow.
 - Never "repair" parts of the file that are outside the requested change just because the format suggests a broader cleanup.
-- Each pass will provide the current file as hashline-formatted text where every line looks like `LINE#HASH:content`.
-- If changes are needed, return ONLY structured hashline edits that target the provided refs.
-- If no changes are needed, return an empty `edits` list.
+- Each pass will provide the current full file text.
+- If changes are needed, return ONLY a structured response whose `patch` field is an apply-patch edit.
+- If no changes are needed, return `patch` as null.
 - Preserve meaning and surrounding structure; avoid broad rewrites.
 - Do not add explanations, markdown fences, or commentary when returning updated text.
 """
@@ -49,7 +49,7 @@ def build_fixer_agent_prompt(
 
 Fix as many obvious safe issues as you can per pass.
 Prefer fewer, higher-yield passes over many tiny passes.
-Keep unchanged text stable and return only structured hashline edits.
+Keep unchanged text stable and return only the structured apply-patch response.
 Stay within {max_turns} passes.{context_block}
 """
 
@@ -77,19 +77,16 @@ Prefer edits that complete several nearby allowed actions in one pass when the c
 For structured files with long string values, do not rewrite a large embedded text block unless the task log identifies a concrete local corruption inside that block.
 Do not spend passes on heading-level normalization, whitespace polish, punctuation polish, or grammar polish unless those issues clearly break structure or signal local corruption.
 
-Hashline rules:
-- The current file text below uses refs in the form `LINE#HASH:content`.
-- Target only refs that appear in the current file text below.
-- Replacement or inserted lines must be raw file lines without the `LINE#HASH:` prefix.
-- Never copy any `LINE#HASH:` prefix into returned replacement text.
-- Replacement or inserted lines must preserve any syntax that belongs on those physical lines, including trailing commas, braces, brackets, quotes, and indentation.
-- Prefer the smallest complete-line edit that keeps the surrounding structure valid.
-- Use `replace_range` for replacements or deletions.
-- Use `insert_before` or `insert_after` for pure insertions.
-- If no changes are needed in this pass, return an empty `edits` list.
+Patch rules:
+- Return an apply-patch edit in `patch`, not full file contents or an explanation.
+- The patch must use this exact envelope: `*** Begin Patch`, `*** Update File: /{normalized_target}`, one or more `@@` chunks, then `*** End Patch`.
+- Keep unchanged text byte-for-byte stable wherever practical.
+- Preserve syntax that belongs on each physical line, including trailing commas, braces, brackets, quotes, and indentation.
+- Prefer the smallest local patch that keeps the surrounding structure valid.
+- If no changes are needed in this pass, return `patch` as null.
 {task_log_block}
 
-Current file text (hashline-formatted):
+Current file text:
 {current_text}
 """
 
@@ -148,38 +145,3 @@ def build_review_system_prompt(system_prompt: str) -> str:
     return f"""{system_prompt}
 
 For this call, do not rewrite the file. Return only the compact checklist requested by the user prompt."""
-
-
-def build_hashline_repair_system_prompt(system_prompt: str) -> str:
-    """Build the repair-call system prompt."""
-    return f"""{system_prompt}
-
-The previous hashline edit plan failed to apply. Return only a corrected, smaller structured hashline edit response for the same file."""
-
-
-def build_hashline_repair_prompt(
-    *,
-    error_text: str,
-    task_log: str,
-    current_text: str,
-    attempted_edits: str,
-) -> str:
-    """Build the retry prompt after a failed edit application."""
-    return f"""Hashline apply error:
-{error_text}
-
-Correct the edit plan against the current hashline-formatted file contents.
-Use the updated refs shown in the file if the old ones went stale.
-Keep the retry smaller and more local than the failed attempt.
-Do not copy `LINE#HASH:` prefixes into replacement text.
-If no changes are needed, return an empty `edits` list.
-Do not respond to a local apply error by rewriting a much larger embedded text block unless the error itself shows that block is the only broken area.
-
-Current task log:
-{task_log}
-
-Current file text (hashline-formatted):
-{current_text}
-
-Failed edit plan:
-{attempted_edits}"""

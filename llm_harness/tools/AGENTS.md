@@ -16,7 +16,6 @@
 - `llm_harness/tools/sql/query.py -> standalone SQLite query helpers`
 - `llm_harness/tools/fs/fs_tools.py -> make_fs_tools`
 - `llm_harness/tools/fs/apply_patch.py -> patch parser/application`
-- `llm_harness/tools/fs/hashline.py -> line-addressed edit helpers`
 - `llm_harness/tools/fs/fast_copy.py -> TagRange/tag_content/filter_content/untag_content`
 - `llm_harness/tools/web/webloader.py -> webloader/webloader_tool`
 - `llm_harness/tools/youtube/scraper.py -> scrape_youtube/get_transcript`
@@ -37,9 +36,8 @@
 - `tabular/tools.py` provides table-aware inspection over CSV/XLSX files as shared block-based tabular normalization.
 - `sql/tools.py` exposes standalone SQL navigation and query tools that are not coupled to file ingestion.
 - `sql/query.py` contains the reusable SQLite listing/describe/query behavior behind the SQL tools.
-- `fs/fs_tools.py` enforces sandbox root + traversal guards for file operations and exposes patch/hashline editing tools.
+- `fs/fs_tools.py` enforces sandbox root + traversal guards for file operations and exposes patch/`ed` editing tools.
 - `fs/apply_patch.py` keeps the tool-facing patch format parsing isolated from higher-level agents.
-- `fs/hashline.py` provides resilient line references for model-directed edits.
 - `fs/fast_copy.py` enables line-tag based filtering workflow used by YouTube summarizers.
 - `web/webloader.py` converts URLs to markdown concurrently and sanitizes noisy artifacts.
 - `youtube/scraper.py` abstracts transcript provider fallback and normalizes result shape.

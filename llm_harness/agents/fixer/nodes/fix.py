@@ -1,21 +1,18 @@
-"""Fixer node that generates and applies hashline edit passes."""
+"""Fixer node that generates and applies patch edit passes."""
 
 from __future__ import annotations
 
 import json
 
 from langchain.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 
 from ....clients.openai import ChatOpenAI
 from ....clients.parser import StructuredOutput, get_metadata
-from ....tools.fs.hashline import HashlineEdit, HashlineEditResponse, HashlineReferenceError, edit_hashline
 from ..prompts import (
-    CLEAN_TASK_LOG,
     DEFAULT_FIXER_SYSTEM_PROMPT,
     build_fixer_agent_prompt,
     build_fixer_pass_prompt,
-    build_hashline_repair_prompt,
-    build_hashline_repair_system_prompt,
 )
 from ..state import FixerState
 from .common import (
@@ -32,6 +29,15 @@ from .common import (
 )
 
 
+class PatchEditResponse(BaseModel):
+    """Single-file patch returned by one fixer pass."""
+
+    patch: str | None = Field(
+        default=None,
+        description="Apply-patch text for the target file, or null when no changes are needed.",
+    )
+
+
 def _summarize_write_error(error: ValueError) -> str:
     """Extract a short single-line summary from an edit error."""
     first_line = str(error).splitlines()[0].strip()
@@ -44,40 +50,29 @@ def _build_edit_llm(state: FixerState):
         model=state.fixer_model,
         temperature=0,
         reasoning_effort="low",
-    ).with_structured_output(HashlineEditResponse, include_raw=True)
+    ).with_structured_output(PatchEditResponse, include_raw=True)
 
 
-def _parse_edit_response(response: object) -> tuple[HashlineEditResponse, int, int, float]:
+def _parse_edit_response(response: object) -> tuple[PatchEditResponse, int, int, float]:
     """Parse a structured fixer response and extract usage metadata."""
     structured_response = StructuredOutput.model_validate(response)
     return (
-        HashlineEditResponse.model_validate(structured_response.parsed),
+        PatchEditResponse.model_validate(structured_response.parsed),
         *get_metadata(structured_response.raw),
     )
 
 
-def _write_edits(
+def _write_patch(
     *,
     runtime: _FixerRuntime,
     current_text: str,
-    edits: list[HashlineEdit],
+    patch: str | None,
     tokens_in: int = 0,
     tokens_out: int = 0,
     cost: float = 0.0,
 ) -> _WriteApplyResult:
-    """Apply edits, write to disk, and preserve shared no-op handling."""
-    updated_text = edit_hashline(current_text, edits)
-    try:
-        json.loads(current_text)
-    except json.JSONDecodeError:
-        pass
-    else:
-        try:
-            json.loads(updated_text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"write broke JSON validity: {exc}") from exc
-
-    if updated_text == current_text:
+    """Apply one patch while preserving shared no-op handling."""
+    if patch is None or not patch.strip():
         logger.info("[FIXER] Treating empty edit as no-op for %s", runtime.target_path)
         return _WriteApplyResult(
             after_text=current_text,
@@ -87,7 +82,29 @@ def _write_edits(
             cost=cost,
         )
 
-    runtime.fs.write_text(runtime.target_path, updated_text)
+    runtime.fs.apply_patch(patch, target_path=runtime.target_path)
+    updated_text = runtime.fs.read_text(runtime.target_path)
+    try:
+        json.loads(current_text)
+    except json.JSONDecodeError:
+        pass
+    else:
+        try:
+            json.loads(updated_text)
+        except json.JSONDecodeError as exc:
+            runtime.fs.write_text(runtime.target_path, current_text)
+            raise ValueError(f"write broke JSON validity: {exc}") from exc
+
+    if updated_text == current_text:
+        logger.info("[FIXER] Treating empty patch as no-op for %s", runtime.target_path)
+        return _WriteApplyResult(
+            after_text=current_text,
+            write_error=EMPTY_EDIT_SENTINEL,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            cost=cost,
+        )
+
     return _WriteApplyResult(
         after_text=updated_text,
         tokens_in=tokens_in,
@@ -98,7 +115,6 @@ def _write_edits(
 
 def _run_fix_pass(
     *,
-    runtime: _FixerRuntime,
     state: FixerState,
     progress: _FixerProgress,
     current_text: str,
@@ -108,7 +124,7 @@ def _run_fix_pass(
     llm = _build_edit_llm(state)
     prompt = build_fixer_pass_prompt(
         target_file=state.target_file,
-        current_text=runtime.fs.read_hashline(runtime.target_path),
+        current_text=current_text,
         pass_number=turn,
         max_turns=state.max_iterations,
         task_log=progress.fixer_notes,
@@ -129,75 +145,11 @@ def _run_fix_pass(
     )
     edit_response, tokens_in, tokens_out, cost = _parse_edit_response(response)
     return _FixPassResult(
-        edits=edit_response.edits,
-        raw_text=edit_response.model_dump_json(indent=2),
+        patch=edit_response.patch,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         cost=cost,
     )
-
-
-def _run_hashline_edit_with_repair(
-    *,
-    runtime: _FixerRuntime,
-    state: FixerState,
-    progress: _FixerProgress,
-    current_text: str,
-    edits: list[HashlineEdit],
-    attempted_text: str,
-) -> _WriteApplyResult:
-    """Apply hashline edits and try one repair pass if validation fails."""
-    llm = _build_edit_llm(state)
-    try:
-        return _write_edits(runtime=runtime, current_text=current_text, edits=edits)
-    except (HashlineReferenceError, ValueError) as error:
-        logger.warning("[FIXER] Hashline edit rejected: %s", _summarize_write_error(error))
-        logger.debug("[FIXER] Full hashline rejection details: %s", str(error).replace("\n", " | "))
-        response = llm.invoke(
-            [
-                SystemMessage(
-                    content=build_hashline_repair_system_prompt(
-                        state.fixer_system_prompt or DEFAULT_FIXER_SYSTEM_PROMPT,
-                    )
-                ),
-                HumanMessage(
-                    content=build_hashline_repair_prompt(
-                        error_text=str(error),
-                        task_log=progress.fixer_notes or CLEAN_TASK_LOG,
-                        current_text=runtime.fs.read_hashline(runtime.target_path),
-                        attempted_edits=attempted_text,
-                    )
-                ),
-            ]
-        )
-        repaired_response, tokens_in, tokens_out, cost = _parse_edit_response(response)
-        if not repaired_response.edits:
-            return _WriteApplyResult(
-                after_text=None,
-                write_error=str(error),
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                cost=cost,
-            )
-        try:
-            return _write_edits(
-                runtime=runtime,
-                current_text=current_text,
-                edits=repaired_response.edits,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                cost=cost,
-            )
-        except (HashlineReferenceError, ValueError) as repaired_error:
-            logger.warning("[FIXER] Repaired hashline edit rejected: %s", _summarize_write_error(repaired_error))
-            logger.debug("[FIXER] Full repaired hashline rejection details: %s", str(repaired_error).replace("\n", " | "))
-            return _WriteApplyResult(
-                after_text=None,
-                write_error=str(repaired_error),
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                cost=cost,
-            )
 
 
 def _handle_write_result(
@@ -268,7 +220,6 @@ def fix_node(state: FixerState) -> dict[str, object]:
 
     current_text = runtime.fs.read_text(runtime.target_path)
     pass_result = _run_fix_pass(
-        runtime=runtime,
         state=state,
         progress=progress,
         current_text=current_text,
@@ -280,21 +231,22 @@ def fix_node(state: FixerState) -> dict[str, object]:
         tokens_out=pass_result.tokens_out,
         cost=pass_result.cost,
     )
-    if not pass_result.edits:
+    if pass_result.patch is None:
         return progress.state_update() | {
             "iteration": turn,
             "review_kind": "no_change",
             "fixer_last_text": "no_change",
         }
 
-    write_result = _run_hashline_edit_with_repair(
-        runtime=runtime,
-        state=state,
-        progress=progress,
-        current_text=current_text,
-        edits=pass_result.edits,
-        attempted_text=pass_result.raw_text,
-    )
+    try:
+        write_result = _write_patch(
+            runtime=runtime,
+            current_text=current_text,
+            patch=pass_result.patch,
+        )
+    except ValueError as error:
+        logger.warning("[FIXER] Patch edit rejected: %s", _summarize_write_error(error))
+        write_result = _WriteApplyResult(after_text=None, write_error=str(error))
     return _handle_write_result(
         runtime=runtime,
         state=state,

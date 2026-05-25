@@ -14,7 +14,6 @@ import subprocess
 from langchain.tools import tool
 
 from .apply_patch import apply_patch_chunks_to_text, parse_single_file_patch_with_stats
-from .hashline import HashlineEdit, edit_hashline, format_hashline_text
 
 PATH_TRAVERSAL_ERROR = "Path traversal not allowed"
 PATH_OUTSIDE_ROOT_ERROR = "Path outside root"
@@ -64,9 +63,17 @@ class SandboxFS:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(text, encoding="utf-8")
 
-    def apply_patch(self, patch: str) -> str:
+    def apply_patch(
+        self,
+        patch: str,
+        *,
+        target_path: str | None = None,
+    ) -> str:
         """Apply a unified patch inside the rooted filesystem."""
-        file_patch, patch_stats = parse_single_file_patch_with_stats(patch_text=patch)
+        file_patch, patch_stats = parse_single_file_patch_with_stats(
+            patch_text=patch,
+            target_path=target_path,
+        )
         path = f"/{file_patch.path.lstrip('/')}"
         original_text = self.read_text(path)
         updated_text = apply_patch_chunks_to_text(
@@ -77,18 +84,6 @@ class SandboxFS:
         self.write_text(path, updated_text)
         logger.info(f"[FS_PATCH] {path} c={patch_stats.chunk_count} r={patch_stats.lines_removed} i={patch_stats.lines_inserted} t={patch_stats.lines_touched}")
         return f"Patched {path}"
-
-    def read_hashline(self, path: str) -> str:
-        """Read a hashline reference from a rooted file."""
-        return format_hashline_text(self.read_text(path))
-
-    def edit_hashline(self, path: str, edits: list[HashlineEdit]) -> str:
-        """Edit one hashline range inside a rooted file."""
-        original_text = self.read_text(path)
-        updated_text = edit_hashline(original_text, edits)
-        self.write_text(path, updated_text)
-        logger.info(f"[FS_HASHLINE] {path} edits={len(edits)}")
-        return updated_text
 
 
 def make_fs_tools(*, root_dir: str | Path):
@@ -130,27 +125,6 @@ def make_fs_tools(*, root_dir: str | Path):
         return fs.apply_patch(patch)
 
     @tool(parse_docstring=True)
-    def fs_read_hashline(path: str) -> str:
-        """Read a UTF-8 text file rendered as `LINE#HASH:content` entries.
-
-        Args:
-            path: File path relative to the sandbox root (or virtual absolute like "/foo.txt").
-        """
-
-        return fs.read_hashline(path)
-
-    @tool(parse_docstring=True)
-    def fs_edit_hashline(path: str, edits: list[HashlineEdit]) -> str:
-        """Apply hashline edits to an existing UTF-8 text file.
-
-        Args:
-            path: File path relative to the sandbox root (or virtual absolute like "/foo.txt").
-            edits: Hashline edit operations to apply to the file.
-        """
-
-        return fs.edit_hashline(path, edits)
-
-    @tool(parse_docstring=True)
     def fs_edit_with_ed(path: str, script: str) -> str:
         """Edit a file by running an `ed` script against it.
 
@@ -184,7 +158,5 @@ def make_fs_tools(*, root_dir: str | Path):
         fs_read_text,
         fs_write_text,
         fs_patch,
-        fs_read_hashline,
-        fs_edit_hashline,
         fs_edit_with_ed,
     ]
