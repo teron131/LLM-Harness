@@ -118,6 +118,53 @@ def _query_summary(
     return summary
 
 
+def _query_result_payload(
+    *,
+    database_path: Path,
+    cursor: sqlite3.Cursor,
+    max_rows: int,
+) -> dict[str, Any]:
+    """Build the public result payload for one executed SQL cursor."""
+    description = cursor.description
+    if not description:
+        return {
+            "database_path": str(database_path),
+            "status": "ok",
+            "max_rows": max_rows,
+            "row_count": 0,
+            "truncated": False,
+            "columns": [],
+            "rows": [],
+            "summary": _query_summary(
+                row_count=0,
+                column_count=0,
+                truncated=False,
+            ),
+        }
+
+    column_names, original_columns = _normalized_column_names([cast(Any, column[0]) for column in description])
+    raw_rows = cursor.fetchmany(max_rows + 1)
+    truncated = len(raw_rows) > max_rows
+    rows = [{column_name: _jsonable_value(value) for column_name, value in _zip_exact(column_names, row)} for row in raw_rows[:max_rows]]
+    payload = {
+        "database_path": str(database_path),
+        "status": "ok",
+        "max_rows": max_rows,
+        "row_count": len(rows),
+        "truncated": truncated,
+        "columns": column_names,
+        "rows": rows,
+        "summary": _query_summary(
+            row_count=len(rows),
+            column_count=len(column_names),
+            truncated=truncated,
+        ),
+    }
+    if column_names != original_columns:
+        payload["original_columns"] = original_columns
+    return payload
+
+
 def _target_summary(
     *,
     name: str,
@@ -137,6 +184,106 @@ def _target_summary(
     if reasons:
         summary_parts.append("matched " + ", ".join(reasons[:MAX_REASON_PREVIEW]))
     return "; ".join(summary_parts)
+
+
+def _target_column_names(target: dict[str, Any]) -> list[str]:
+    """Return the catalog column names for one target."""
+    return [cast(str, column["name"]) for column in cast(list[dict[str, Any]], target["columns"])]
+
+
+def _target_list_item(target: dict[str, Any]) -> dict[str, Any]:
+    """Build one public target listing item from catalog metadata."""
+    name = cast(str, target["name"])
+    target_type = cast(str, target["type"])
+    kind = cast(str, target["kind"])
+    row_count = cast(int | None, target["row_count"])
+    source_paths = cast(list[str], target["source_paths"])
+    source_path_preview, source_paths_truncated = _preview_list(
+        source_paths,
+        max_items=MAX_SOURCE_PATH_PREVIEW,
+    )
+    column_names = _target_column_names(target)
+    return {
+        "name": name,
+        "type": target_type,
+        "kind": kind,
+        "row_count": row_count,
+        "source_path_count": len(source_paths),
+        "source_path_preview": source_path_preview,
+        "source_paths_truncated": source_paths_truncated,
+        "summary": _target_summary(
+            name=name,
+            target_type=target_type,
+            kind=kind,
+            row_count=row_count,
+            column_names=column_names,
+            source_paths=source_paths,
+        ),
+    }
+
+
+def _target_suggestion(
+    target: dict[str, Any],
+    *,
+    tokens: list[str],
+) -> dict[str, Any] | None:
+    """Build one scored target suggestion from catalog metadata."""
+    name = cast(str, target["name"])
+    target_type = cast(str, target["type"])
+    kind = cast(str, target["kind"])
+    row_count = cast(int | None, target["row_count"])
+    column_names = _target_column_names(target)
+    source_paths = cast(list[str], target["source_paths"])
+    search_text = _target_search_text(
+        name=name,
+        target_type=target_type,
+        kind=kind,
+        column_names=column_names,
+        source_paths=source_paths,
+        create_sql=cast(str | None, target["create_sql"]),
+    )
+    score, reasons = _target_score(
+        tokens=tokens,
+        name=name,
+        column_names=column_names,
+        source_paths=source_paths,
+        search_text=search_text,
+    )
+    if score <= 0:
+        return None
+
+    score += _kind_bias(kind)
+    column_preview, columns_truncated = _preview_list(
+        column_names,
+        max_items=MAX_COLUMN_PREVIEW,
+    )
+    source_path_preview, source_paths_truncated = _preview_list(
+        source_paths,
+        max_items=MAX_SOURCE_PATH_PREVIEW,
+    )
+    return {
+        "name": name,
+        "type": target_type,
+        "kind": kind,
+        "score": score,
+        "reasons": reasons[:MAX_REASON_PREVIEW],
+        "column_count": len(column_names),
+        "column_preview": column_preview,
+        "columns_truncated": columns_truncated,
+        "source_path_count": len(source_paths),
+        "source_path_preview": source_path_preview,
+        "source_paths_truncated": source_paths_truncated,
+        "row_count": row_count,
+        "summary": _target_summary(
+            name=name,
+            target_type=target_type,
+            kind=kind,
+            row_count=row_count,
+            column_names=column_names,
+            source_paths=source_paths,
+            reasons=reasons,
+        ),
+    }
 
 
 def _normalized_column_names(column_names: list[str | None]) -> tuple[list[str], list[str]]:
@@ -633,6 +780,56 @@ def classify_target(name: str) -> str:
     return "view_or_table"
 
 
+def _save_view_validation_error(
+    *,
+    requested_path: Path,
+    normalized_sql: str,
+    normalized_view_name: str,
+    replace: bool,
+) -> dict[str, Any] | None:
+    """Return a stable save-view validation error, if the request is invalid."""
+    if not normalized_sql:
+        return _error_result(
+            database_path=requested_path,
+            error_type="empty_sql",
+            message="SQL query must not be empty.",
+            view_name=normalized_view_name,
+            replace=replace,
+        )
+    if not normalized_view_name:
+        return _error_result(
+            database_path=requested_path,
+            error_type="empty_view_name",
+            message="View name must not be empty.",
+            replace=replace,
+        )
+    if not _is_valid_view_name(normalized_view_name):
+        return _error_result(
+            database_path=requested_path,
+            error_type="invalid_view_name",
+            message="View name must start with a letter or underscore and contain only letters, digits, and underscores.",
+            view_name=normalized_view_name,
+            replace=replace,
+        )
+    if normalized_view_name.startswith("sqlite_"):
+        return _error_result(
+            database_path=requested_path,
+            error_type="reserved_view_name",
+            message="View name must not start with 'sqlite_'.",
+            view_name=normalized_view_name,
+            replace=replace,
+        )
+    if not _is_view_sql(normalized_sql):
+        return _error_result(
+            database_path=requested_path,
+            error_type="disallowed_sql",
+            message="Only read-only SELECT and WITH queries can be saved as views.",
+            view_name=normalized_view_name,
+            replace=replace,
+        )
+    return None
+
+
 def run_query(
     sql: str,
     *,
@@ -667,40 +864,11 @@ def run_query(
         )
         with closing(_open_read_only_connection(resolved_path)) as connection:
             cursor = connection.execute(sql)
-            description = cursor.description
-            if not description:
-                return {
-                    "database_path": str(resolved_path),
-                    "status": "ok",
-                    "max_rows": safe_max_rows,
-                    "row_count": 0,
-                    "truncated": False,
-                    "columns": [],
-                    "rows": [],
-                    "summary": _query_summary(row_count=0, column_count=0, truncated=False),
-                }
-
-            column_names, original_columns = _normalized_column_names([cast(Any, column[0]) for column in description])
-            raw_rows = cursor.fetchmany(safe_max_rows + 1)
-            truncated = len(raw_rows) > safe_max_rows
-            result_rows = raw_rows[:safe_max_rows]
-            rows = []
-            for row in result_rows:
-                rows.append({column_name: _jsonable_value(value) for column_name, value in _zip_exact(column_names, row)})
-
-            payload = {
-                "database_path": str(resolved_path),
-                "status": "ok",
-                "max_rows": safe_max_rows,
-                "row_count": len(rows),
-                "truncated": truncated,
-                "columns": column_names,
-                "rows": rows,
-                "summary": _query_summary(row_count=len(rows), column_count=len(column_names), truncated=truncated),
-            }
-            if column_names != original_columns:
-                payload["original_columns"] = original_columns
-            return payload
+            return _query_result_payload(
+                database_path=resolved_path,
+                cursor=cursor,
+                max_rows=safe_max_rows,
+            )
     except ValueError as exc:
         return _error_result(
             database_path=requested_path,
@@ -730,45 +898,14 @@ def save_view(
     normalized_sql = _normalized_sql(sql)
     normalized_view_name = view_name.strip()
     try:
-        if not normalized_sql:
-            return _error_result(
-                database_path=requested_path,
-                error_type="empty_sql",
-                message="SQL query must not be empty.",
-                view_name=normalized_view_name,
-                replace=replace,
-            )
-        if not normalized_view_name:
-            return _error_result(
-                database_path=requested_path,
-                error_type="empty_view_name",
-                message="View name must not be empty.",
-                replace=replace,
-            )
-        if not _is_valid_view_name(normalized_view_name):
-            return _error_result(
-                database_path=requested_path,
-                error_type="invalid_view_name",
-                message="View name must start with a letter or underscore and contain only letters, digits, and underscores.",
-                view_name=normalized_view_name,
-                replace=replace,
-            )
-        if normalized_view_name.startswith("sqlite_"):
-            return _error_result(
-                database_path=requested_path,
-                error_type="reserved_view_name",
-                message="View name must not start with 'sqlite_'.",
-                view_name=normalized_view_name,
-                replace=replace,
-            )
-        if not _is_view_sql(normalized_sql):
-            return _error_result(
-                database_path=requested_path,
-                error_type="disallowed_sql",
-                message="Only read-only SELECT and WITH queries can be saved as views.",
-                view_name=normalized_view_name,
-                replace=replace,
-            )
+        validation_error = _save_view_validation_error(
+            requested_path=requested_path,
+            normalized_sql=normalized_sql,
+            normalized_view_name=normalized_view_name,
+            replace=replace,
+        )
+        if validation_error is not None:
+            return validation_error
 
         resolved_path = resolve_db_path(
             root_dir=root_dir,
@@ -856,29 +993,7 @@ def list_targets(
             kind = cast(str, target["kind"])
             if not include_internal and kind == "internal_catalog":
                 continue
-
-            source_paths = cast(list[str], target["source_paths"])
-            source_path_preview, source_paths_truncated = _preview_list(source_paths, max_items=MAX_SOURCE_PATH_PREVIEW)
-            column_names = [cast(str, column["name"]) for column in cast(list[dict[str, Any]], target["columns"])]
-            items.append(
-                {
-                    "name": target["name"],
-                    "type": target["type"],
-                    "kind": kind,
-                    "row_count": target["row_count"],
-                    "source_path_count": len(source_paths),
-                    "source_path_preview": source_path_preview,
-                    "source_paths_truncated": source_paths_truncated,
-                    "summary": _target_summary(
-                        name=cast(str, target["name"]),
-                        target_type=cast(str, target["type"]),
-                        kind=kind,
-                        row_count=cast(int | None, target["row_count"]),
-                        column_names=column_names,
-                        source_paths=source_paths,
-                    ),
-                }
-            )
+            items.append(_target_list_item(target))
 
         return {
             "database_path": str(resolved_path),
@@ -1017,60 +1132,16 @@ def suggest_targets(
         catalog = _database_catalog(resolved_path)
         suggestions = []
         for target in cast(list[dict[str, Any]], catalog["targets"]):
-            name = cast(str, target["name"])
-            target_type = cast(str, target["type"])
             kind = cast(str, target["kind"])
             if not include_internal and kind == "internal_catalog":
                 continue
-
-            column_names = [cast(str, column["name"]) for column in cast(list[dict[str, Any]], target["columns"])]
-            source_paths = cast(list[str], target["source_paths"])
-            search_text = _target_search_text(
-                name=name,
-                target_type=target_type,
-                kind=kind,
-                column_names=column_names,
-                source_paths=source_paths,
-                create_sql=cast(str | None, target["create_sql"]),
-            )
-            score, reasons = _target_score(
+            suggestion = _target_suggestion(
+                target,
                 tokens=tokens,
-                name=name,
-                column_names=column_names,
-                source_paths=source_paths,
-                search_text=search_text,
             )
-            if score <= 0:
+            if suggestion is None:
                 continue
-            score += _kind_bias(kind)
-            column_preview, columns_truncated = _preview_list(column_names, max_items=MAX_COLUMN_PREVIEW)
-            source_path_preview, source_paths_truncated = _preview_list(source_paths, max_items=MAX_SOURCE_PATH_PREVIEW)
-
-            suggestions.append(
-                {
-                    "name": name,
-                    "type": target_type,
-                    "kind": kind,
-                    "score": score,
-                    "reasons": reasons[:MAX_REASON_PREVIEW],
-                    "column_count": len(column_names),
-                    "column_preview": column_preview,
-                    "columns_truncated": columns_truncated,
-                    "source_path_count": len(source_paths),
-                    "source_path_preview": source_path_preview,
-                    "source_paths_truncated": source_paths_truncated,
-                    "row_count": target["row_count"],
-                    "summary": _target_summary(
-                        name=name,
-                        target_type=target_type,
-                        kind=kind,
-                        row_count=cast(int | None, target["row_count"]),
-                        column_names=column_names,
-                        source_paths=source_paths,
-                        reasons=reasons,
-                    ),
-                }
-            )
+            suggestions.append(suggestion)
 
         suggestions.sort(key=lambda item: (-cast(int, item["score"]), cast(str, item["name"])))
         top_suggestions = suggestions[:safe_max_results]
