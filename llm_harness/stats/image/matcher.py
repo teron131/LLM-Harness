@@ -504,7 +504,7 @@ def _apply_dynamic_void(
     models: list[ImageMatchMappedModel],
 ) -> tuple[float | None, int]:
     """Apply the dynamic void."""
-    scores = sorted(model["best_match"]["score"] for model in models if model.get("best_match") is not None)
+    scores = sorted(best_match["score"] for model in models if (best_match := model.get("best_match")) is not None)
     if not scores:
         return None, 0
     min_score = scores[0]
@@ -538,7 +538,7 @@ def _map_model(
     artificial_analysis_rank: int | None,
 ) -> ImageMatchMappedModel:
     """Map a source model into the selected Image model matching payload."""
-    scored_candidates = sorted(
+    scored_candidates: list[ImageMatchCandidate] = sorted(
         [
             {
                 "arena_model": str(arena_model.get("model") or ""),

@@ -23,8 +23,8 @@ def _resize_image_proportionally(
 ) -> Image.Image:
     """Resize an image proportionally to fit within max_size dimensions."""
     ratio = min(max_size[0] / image.width, max_size[1] / image.height)
-    new_size = tuple(int(dim * ratio) for dim in image.size)
-    return image.resize(new_size, Image.LANCZOS)
+    new_size = (int(image.width * ratio), int(image.height * ratio))
+    return image.resize(new_size, Image.Resampling.LANCZOS)
 
 
 def _image_to_base64(

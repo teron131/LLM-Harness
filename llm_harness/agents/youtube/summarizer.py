@@ -53,7 +53,8 @@ def garbage_filter_middleware(
                 HumanMessage(content=tagged_transcript),
             ]
 
-            garbage: GarbageIdentification = llm.invoke(messages)
+            raw_garbage = llm.invoke(messages)
+            garbage = GarbageIdentification.model_validate(raw_garbage)
 
             if garbage.garbage_ranges:
                 filtered_transcript = filter_content(tagged_transcript, garbage.garbage_ranges)
@@ -118,4 +119,4 @@ def summarize_video(
     if summary is None:
         raise ValueError("Agent did not return structured response")
 
-    return summary
+    return Summary.model_validate(summary)

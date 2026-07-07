@@ -118,7 +118,7 @@ def _round4(value: float) -> float:
     return round(value, 4)
 
 
-def _weighted_score_or_average(weighted_sum: float, votes_sum: float, score_sum: float, count: int) -> float | None:
+def _weighted_score_or_average(weighted_sum: float, votes_sum: float, score_sum: float, count: int | float) -> float | None:
     """Helper for weighted score or average."""
     if votes_sum > 0:
         return _round4(weighted_sum / votes_sum)

@@ -497,7 +497,7 @@ def _cached_database_catalog(
         for master_row in connection.execute(_TARGET_MASTER_SQL).fetchall():
             name = cast(str, master_row[0])
             target_type = cast(str, master_row[1])
-            create_sql = cast(Any, master_row[2])
+            create_sql = master_row[2]
             kind = classify_target(name)
             columns = [
                 {

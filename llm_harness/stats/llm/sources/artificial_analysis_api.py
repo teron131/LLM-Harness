@@ -146,9 +146,16 @@ def _rank_and_enrich_models(
         and _is_positive_finite(model.get("median_time_to_first_answer_token"))
         and _is_positive_finite(model.get("median_output_tokens_per_second"))
     ]
+    scored_models = []
+    for model in _compute_scores(filtered_models):
+        raw_scores = model.get("scores")
+        scores = raw_scores if isinstance(raw_scores, dict) else {}
+        overall_score = scores.get("overall_score")
+        if isinstance(overall_score, int | float) and math.isfinite(float(overall_score)):
+            scored_models.append(model)
     ranked = sorted(
-        [model for model in _compute_scores(filtered_models) if math.isfinite(float((model.get("scores") or {}).get("overall_score")))],
-        key=lambda model: float((model.get("scores") or {}).get("overall_score")),
+        scored_models,
+        key=lambda model: float(model["scores"]["overall_score"] if isinstance(model.get("scores"), dict) else 0),
         reverse=True,
     )
     overall_values = [(model.get("scores") or {}).get("overall_score") for model in ranked]

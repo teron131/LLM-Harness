@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from typing import Any, cast, overload
 
 from langchain.messages import AIMessage
 from pydantic import BaseModel, ConfigDict
@@ -20,13 +21,31 @@ class StructuredOutput(BaseModel):
 
 
 def _to_int(value: object) -> int:
-    """Helper for to int."""
-    return int(value or 0)
+    """Coerce provider metadata values to token counts."""
+    if isinstance(value, bool) or value is None:
+        return 0
+    if isinstance(value, str) and not value.strip():
+        return 0
+    if not isinstance(value, str | int | float):
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _to_float(value: object) -> float:
-    """Helper for to float."""
-    return float(value or 0.0)
+    """Coerce provider metadata values to costs."""
+    if isinstance(value, bool) or value is None:
+        return 0.0
+    if isinstance(value, str) and not value.strip():
+        return 0.0
+    if not isinstance(value, str | int | float):
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def get_metadata(ai_message: AIMessage) -> tuple[int, int, float]:
@@ -67,14 +86,16 @@ def get_metadata(ai_message: AIMessage) -> tuple[int, int, float]:
     return 0, 0, 0.0
 
 
-def _extract_reasoning(content_blocks: list[dict]) -> str | None:
+def _extract_reasoning(content_blocks: list[Any]) -> str | None:
     """Extract reasoning from response content_blocks."""
     if not content_blocks:
         return None
 
     first_block = content_blocks[0]
+    if not isinstance(first_block, dict):
+        return None
     if reasoning := first_block.get("reasoning"):
-        return reasoning
+        return str(reasoning)
 
     # Check for nested content structure (e.g. from some providers)
     if (
@@ -85,9 +106,21 @@ def _extract_reasoning(content_blocks: list[dict]) -> str | None:
         and nested_content
         and isinstance(nested_content[-1], dict)
     ):
-        return nested_content[-1].get("text")
+        text = nested_content[-1].get("text")
+        return str(text) if text is not None else None
 
     return None
+
+
+def _extract_text(content_blocks: list[Any]) -> str:
+    """Return the final text block from a LangChain message."""
+    if not content_blocks:
+        return ""
+    last_block = content_blocks[-1]
+    if isinstance(last_block, dict):
+        text = last_block.get("text")
+        return str(text) if text is not None else ""
+    return ""
 
 
 def parse_invoke(
@@ -95,11 +128,19 @@ def parse_invoke(
     include_reasoning: bool = False,
 ) -> str | tuple[str | None, str]:
     """Parse response to extract answer and optionally reasoning."""
-    answer = response.content_blocks[-1]["text"]
+    answer = _extract_text(response.content_blocks)
     if include_reasoning:
         reasoning = _extract_reasoning(response.content_blocks)
         return reasoning, answer
     return answer
+
+
+@overload
+def parse_batch(responses: list[AIMessage], include_reasoning: bool = False) -> list[str]: ...
+
+
+@overload
+def parse_batch(responses: list[AIMessage], include_reasoning: bool) -> list[str] | list[tuple[str | None, str]]: ...
 
 
 def parse_batch(
@@ -107,13 +148,21 @@ def parse_batch(
     include_reasoning: bool = False,
 ) -> list[str] | list[tuple[str | None, str]]:
     """Parse batched responses, optionally with reasoning."""
-    return [parse_invoke(response, include_reasoning) for response in responses]
+    if include_reasoning:
+        return cast(
+            list[tuple[str | None, str]],
+            [parse_invoke(response, include_reasoning=True) for response in responses],
+        )
+    return cast(
+        list[str],
+        [parse_invoke(response, include_reasoning=False) for response in responses],
+    )
 
 
 def get_stream_generator(
     stream: Generator[AIMessage],
     include_reasoning: bool = False,
-) -> Generator[str | tuple[str, str | None]]:
+) -> Generator[str | tuple[str | None, str | None]]:
     """Yield streaming chunks, optionally with reasoning."""
     reasoning_yielded = False
 
@@ -125,7 +174,7 @@ def get_stream_generator(
             reasoning_yielded = True
             yield (reasoning, None)
 
-        if answer := blocks[-1].get("text"):
+        if answer := _extract_text(blocks):
             yield (None, answer) if include_reasoning else answer
 
 

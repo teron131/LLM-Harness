@@ -77,11 +77,16 @@ def create_gemini_cache(
         raise FileNotFoundError(f"File not found: {path}")
 
     logger.info(f"Uploading {path.name}...")
-    file_ref = client.files.upload(path=str(path))
+    file_ref = client.files.upload(file=str(path))
+
+    if file_ref.state is None or file_ref.name is None:
+        raise RuntimeError("Upload did not return a usable file reference")
 
     while file_ref.state.name == "PROCESSING":
         time.sleep(1)
         file_ref = client.files.get(name=file_ref.name)
+        if file_ref.state is None or file_ref.name is None:
+            raise RuntimeError("Uploaded file status did not include state or name")
 
     if file_ref.state.name == "FAILED":
         raise RuntimeError(f"Upload failed: {file_ref.state.name}")
@@ -91,4 +96,6 @@ def create_gemini_cache(
         model=model,
         config=types.CreateCachedContentConfig(contents=[file_ref]),
     )
+    if cache.name is None:
+        raise RuntimeError("Cache creation did not return a cache name")
     return cache.name

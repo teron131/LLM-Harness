@@ -5,7 +5,7 @@ Creates content blocks compatible with OpenAI-compatible chat endpoints.
 
 import base64
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from langchain.messages import HumanMessage
 
@@ -104,7 +104,7 @@ class MediaMessage(HumanMessage):
         if description:
             content_blocks.append(_create_text_block(description))
 
-        super().__init__(content=content_blocks)
+        super().__init__(content=cast(list[str | dict], content_blocks))
 
     def _from_bytes(self, data: bytes, mime_type: str) -> list[dict[str, Any]]:
         """Create content blocks from raw bytes (assumes image)."""

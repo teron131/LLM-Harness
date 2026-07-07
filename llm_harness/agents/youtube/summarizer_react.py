@@ -1,9 +1,11 @@
 """YouTube video transcript summarization using LangChain with LangGraph self-checking workflow."""
 
 from collections.abc import Generator
+from typing import Any
 
 from langchain.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
 from ...clients.openai import ChatOpenAI
@@ -59,8 +61,11 @@ class SummarizerOutput(BaseModel):
 # ============================================================================
 
 
-def garbage_filter_node(state: SummarizerState) -> dict:
+def garbage_filter_node(state: SummarizerState) -> dict[str, Any]:
     """Identify and remove garbage from the transcript."""
+    if state.transcript is None:
+        raise ValueError("Transcript is required before garbage filtering")
+
     # Tag the transcript for identification
     tagged_transcript = tag_content(state.transcript)
 
@@ -77,7 +82,8 @@ def garbage_filter_node(state: SummarizerState) -> dict:
         HumanMessage(content=tagged_transcript),
     ]
 
-    garbage: GarbageIdentification = llm.invoke(messages)
+    raw_garbage = llm.invoke(messages)
+    garbage = GarbageIdentification.model_validate(raw_garbage)
 
     if garbage.garbage_ranges:
         filtered_transcript = filter_content(tagged_transcript, garbage.garbage_ranges)
@@ -89,7 +95,7 @@ def garbage_filter_node(state: SummarizerState) -> dict:
     return {}
 
 
-def summary_node(state: SummarizerState) -> dict:
+def summary_node(state: SummarizerState) -> dict[str, Any]:
     """Generate summary from transcript."""
     llm = ChatOpenAI(
         model=SUMMARY_MODEL,
@@ -114,7 +120,7 @@ def summary_node(state: SummarizerState) -> dict:
     }
 
 
-def quality_node(state: SummarizerState) -> dict:
+def quality_node(state: SummarizerState) -> dict[str, Any]:
     """Assess quality of summary."""
     llm = ChatOpenAI(
         model=QUALITY_MODEL,
@@ -130,7 +136,8 @@ def quality_node(state: SummarizerState) -> dict:
         HumanMessage(content=f"Transcript:\n{state.transcript}\n\nSummary:\n{summary_json}"),
     ]
 
-    quality: Quality = llm.invoke(messages)
+    raw_quality = llm.invoke(messages)
+    quality = Quality.model_validate(raw_quality)
 
     return {
         "quality": quality,
@@ -160,7 +167,7 @@ def should_continue(state: SummarizerState) -> str:
     return END
 
 
-def create_graph() -> StateGraph:
+def create_graph() -> CompiledStateGraph:
     """Create the summarization workflow graph with conditional routing."""
     builder = StateGraph(
         SummarizerState,

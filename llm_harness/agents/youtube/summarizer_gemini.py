@@ -81,7 +81,7 @@ def analyze_video_url(
                 types.Part(text=system_prompt),
             ],
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
+                thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel(thinking_level)),
                 response_mime_type="application/json",
                 response_schema=Summary,
             ),

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI as NativeChatOpenAI, OpenAIEmbeddings as NativeOpenAIEmbeddings
+from pydantic import SecretStr
 
 load_dotenv()
 
@@ -68,7 +69,7 @@ def ChatOpenAI(
     )
 
     client_kwargs: dict[str, Any] = {
-        "api_key": resolved_api_key,
+        "api_key": SecretStr(resolved_api_key),
         "base_url": resolved_base_url,
         **kwargs,
     }
@@ -96,7 +97,7 @@ def OpenAIEmbeddings(
 
     return NativeOpenAIEmbeddings(
         model=model,
-        api_key=resolved_api_key,
+        api_key=SecretStr(resolved_api_key),
         base_url=resolved_base_url,
         **kwargs,
     )

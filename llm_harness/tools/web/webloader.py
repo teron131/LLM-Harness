@@ -85,4 +85,4 @@ def webloader_tool(urls: list[str]) -> list[str]:
     Args:
         urls: One or more URLs to fetch and convert into plain text.
     """
-    return webloader(urls)
+    return [content for content in webloader(urls) if content is not None]

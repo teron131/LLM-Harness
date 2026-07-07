@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from statistics import median
-from typing import Any
+from typing import Any, cast
 
 import polars as pl
 
@@ -18,7 +18,8 @@ def percentile_rank(values: list[Any], value: Any) -> float | None:
     finite_values = [item for item in (as_finite_number(v) for v in values) if item is not None]
     if not finite_values:
         return None
-    return pl.DataFrame({"value": finite_values}).select(((pl.col("value") <= numeric_value).sum() / pl.len()) * 100).item()
+    rank = pl.DataFrame({"value": finite_values}).select(((pl.col("value") <= numeric_value).sum() / pl.len()) * 100).item()
+    return float(rank) if isinstance(rank, int | float) else None
 
 
 def mean_of_finite(values: list[float | None]) -> float | None:
@@ -26,7 +27,8 @@ def mean_of_finite(values: list[float | None]) -> float | None:
     finite_values = [value for value in values if value is not None]
     if not finite_values:
         return None
-    return pl.Series("value", finite_values).mean()
+    mean = pl.Series("value", finite_values).mean()
+    return float(mean) if isinstance(mean, int | float) else None
 
 
 def _metric_value(model: dict[str, Any], key: str) -> float | None:
@@ -49,8 +51,8 @@ def blended_price_value(cost_like: Any, scoring_config: dict[str, Any]) -> float
     cache_write = as_finite_number(cost.get("cache_write"))
     if input_cost is None or output_cost is None or input_cost <= 0 or output_cost <= 0:
         return None
-    input_ratio = scoring_config.get("weighted_price_input_ratio", 0.75)
-    output_ratio = scoring_config.get("weighted_price_output_ratio", 0.25)
+    input_ratio = as_finite_number(scoring_config.get("weighted_price_input_ratio")) or 0.75
+    output_ratio = as_finite_number(scoring_config.get("weighted_price_output_ratio")) or 0.25
     if weighted_input is not None or weighted_output is not None:
         effective_input = weighted_input if weighted_input is not None else input_cost
         effective_output = weighted_output if weighted_output is not None else output_cost
@@ -74,21 +76,27 @@ def derive_speed_output_token_anchors(openrouter_speed_by_id: dict[str, dict[str
             continue
         implied_token_usages.append(generation_seconds * throughput)
     implied_token_usages.sort()
-    default_anchors = list(scoring_config.get("default_speed_output_token_anchors", [200, 500, 1000, 2000, 8000]))
+    default_anchors = cast(list[int], list(scoring_config.get("default_speed_output_token_anchors", [200, 500, 1000, 2000, 8000])))
     if not implied_token_usages:
         return default_anchors
-    quantiles = [0, *scoring_config.get("speed_anchor_quantiles", [0.25, 0.5, 0.75]), 1]
+    quantiles = [0, *cast(list[float], scoring_config.get("speed_anchor_quantiles", [0.25, 0.5, 0.75])), 1]
     token_series = pl.Series("tokens", implied_token_usages)
-    anchors = [
-        implied_token_usages[0] if quantile == 0 else implied_token_usages[-1] if quantile == 1 else float(token_series.quantile(quantile, interpolation="linear"))
-        for quantile in quantiles
-    ]
+    anchors = []
+    for quantile in quantiles:
+        if quantile == 0:
+            anchors.append(implied_token_usages[0])
+        elif quantile == 1:
+            anchors.append(implied_token_usages[-1])
+        else:
+            quantile_value = token_series.quantile(quantile, interpolation="linear")
+            if quantile_value is not None:
+                anchors.append(float(quantile_value))
     source_min = anchors[0]
     source_max = anchors[-1]
     if source_max <= source_min:
         return default_anchors
-    range_min = scoring_config.get("speed_output_token_range_min", 200)
-    range_max = scoring_config.get("speed_output_token_range_max", 8000)
+    range_min = as_finite_number(scoring_config.get("speed_output_token_range_min")) or 200
+    range_max = as_finite_number(scoring_config.get("speed_output_token_range_max")) or 8000
     return [round(range_min + ((anchor - source_min) / (source_max - source_min)) * (range_max - range_min)) for anchor in anchors]
 
 

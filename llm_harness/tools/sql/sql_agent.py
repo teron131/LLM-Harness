@@ -310,7 +310,8 @@ def make_llm_planner(
 
     def planner(state: SQLAgentState) -> SQLPlan:
         """Plan the next SQL investigation step."""
-        return structured_llm.invoke(_build_planner_messages(state))
+        raw_plan = structured_llm.invoke(_build_planner_messages(state))
+        return SQLPlan.model_validate(raw_plan)
 
     return planner
 
@@ -503,7 +504,7 @@ def create_sql_graph(planner: PlannerFn) -> CompiledStateGraph:
     builder.add_node("suggest", suggest_node)
     builder.add_node("clarify", clarify_node)
     builder.add_node("inspect", inspect_node)
-    builder.add_node("plan", make_plan_node(planner))
+    builder.add_node("plan", cast(Any, make_plan_node(planner)))
     builder.add_node("execute", execute_node)
     builder.add_node("repair", repair_node)
 

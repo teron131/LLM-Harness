@@ -44,6 +44,8 @@ class ExaAgent:
             system_prompt=self.system_prompt,
             output_schema=self.output_schema.model_json_schema(),
         )
+        if not hasattr(result, "answer"):
+            raise ValueError("Exa answer response did not include an answer")
         return self.output_schema.model_validate(result.answer)
 
 
@@ -79,11 +81,18 @@ class BaseHarnessAgent:
             response_format=ToolStrategy(self.response_format) if self.response_format else None,
         )
 
-    def _process_response(self, response: dict) -> BaseModel | str:
+    def _process_response(self, response: dict[str, Any]) -> BaseModel | str:
         """Extract either structured output or the final text message."""
         if self.response_format:
-            return response.get("structured_response")
-        return response.get("messages")[-1].content
+            structured_response = response.get("structured_response")
+            if structured_response is None:
+                raise ValueError("Agent did not return structured response")
+            return self.response_format.model_validate(structured_response)
+
+        messages = response.get("messages")
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("Agent response did not include messages")
+        return str(messages[-1].content)
 
 
 class WebLoaderAgent(BaseHarnessAgent):
@@ -121,7 +130,7 @@ class ImageAnalysisAgent(BaseHarnessAgent):
 
     def invoke(
         self,
-        image_paths: str | Path | list[str | Path],
+        image_paths: str | Path | bytes | list[str | Path | bytes],
         description: str = "",
     ) -> BaseModel | str:
         """Analyze one or more images with an optional description/prompt."""

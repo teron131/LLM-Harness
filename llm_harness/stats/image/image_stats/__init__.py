@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from .cache import (
     DEFAULT_OUTPUT_PATH,
@@ -47,24 +48,37 @@ def get_image_stats_selected(
         if model_id is None:
             cached_payload = load_image_stats_selected_from_cache(DEFAULT_OUTPUT_PATH)
             if cached_payload is not None:
-                return ImageStatsSelectedPayloadModel.model_validate(cached_payload).model_dump()
+                return cast(ImageStatsSelectedPayload, ImageStatsSelectedPayloadModel.model_validate(cached_payload).model_dump())
         source_data = fetch_source_data()
         matched_rows = build_matched_rows(source_data)
         models = build_final_models(matched_rows, model_id)
         fetched_at = current_epoch_seconds()
         if model_id is not None:
-            return ImageStatsSelectedPayloadModel(
-                fetched_at_epoch_seconds=fetched_at,
-                models=models,
-            ).model_dump()
-        list_payload = ImageStatsSelectedPayloadModel(
-            fetched_at_epoch_seconds=fetched_at,
-            models=models,
-        ).model_dump()
+            return cast(
+                ImageStatsSelectedPayload,
+                ImageStatsSelectedPayloadModel.model_validate(
+                    {
+                        "fetched_at_epoch_seconds": fetched_at,
+                        "models": models,
+                    }
+                ).model_dump(),
+            )
+        list_payload = cast(
+            ImageStatsSelectedPayload,
+            ImageStatsSelectedPayloadModel.model_validate(
+                {
+                    "fetched_at_epoch_seconds": fetched_at,
+                    "models": models,
+                }
+            ).model_dump(),
+        )
         save_image_stats_selected(list_payload, DEFAULT_OUTPUT_PATH)
         return list_payload
     except Exception:
-        return ImageStatsSelectedPayloadModel(
-            fetched_at_epoch_seconds=None,
-            models=[],
-        ).model_dump()
+        return cast(
+            ImageStatsSelectedPayload,
+            ImageStatsSelectedPayloadModel(
+                fetched_at_epoch_seconds=None,
+                models=[],
+            ).model_dump(),
+        )

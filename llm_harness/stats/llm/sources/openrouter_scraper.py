@@ -8,7 +8,7 @@ import random
 import re
 from statistics import median
 import time
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -78,7 +78,7 @@ def _sanitize_model_id(model_id: str) -> str:
 
 def _as_finite_number(value: object) -> float | None:
     """Convert the input into a finite number for OpenRouter scraper model stats."""
-    if value is None or isinstance(value, bool):
+    if value is None or isinstance(value, bool) or not isinstance(value, str | int | float):
         return None
     try:
         numeric_value = float(value)
@@ -462,4 +462,4 @@ def get_openrouter_model_stats(
         first_model = models[0]
         if isinstance(first_model, dict):
             return first_model
-    return _empty_scraped_model(model_id)
+    return cast(dict[str, Any], _empty_scraped_model(model_id))

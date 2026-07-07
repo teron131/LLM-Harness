@@ -137,13 +137,15 @@ def _to_aggregated_fields(accumulator: dict[str, dict[str, float]]) -> dict[str,
 
 def _enrich_payload(raw_payload: dict[str, Any], min_model_age_days: int) -> dict[str, Any]:
     """Enrich the selected Artificial Analysis image benchmark source payload."""
-    all_models = raw_payload.get("data") if isinstance(raw_payload.get("data"), list) else []
+    raw_models = raw_payload.get("data")
+    all_models = raw_models if isinstance(raw_models, list) else []
     models = [model for model in all_models if isinstance(model, dict) and not _is_older_than_days(model.get("release_date"), min_model_age_days)]
     global_accumulator = _init_accumulator()
     enriched_models: list[dict[str, Any]] = []
     for model in models:
         local_accumulator = _init_accumulator()
-        categories = model.get("categories") if isinstance(model.get("categories"), list) else []
+        categories = model.get("categories")
+        categories = categories if isinstance(categories, list) else []
         for category in categories:
             if not isinstance(category, dict):
                 continue

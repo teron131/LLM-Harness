@@ -175,7 +175,7 @@ def _extract_tabular_file(
     profile = _profile_tabular_file(path, max_sample_rows=sample_rows, sheet=sheet)
     recovered = _recover_tabular_blocks(
         path,
-        sample_rows=None,
+        sample_rows=sample_rows,
         metadata_rows=metadata_rows,
         sheet=sheet,
     )

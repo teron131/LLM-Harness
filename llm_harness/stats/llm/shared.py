@@ -2,11 +2,30 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
 PRIMARY_PROVIDER_ID = "openrouter"
 FALLBACK_PROVIDER_IDS = {"openai", "google", "anthropic"}
+
+
+def as_record(value: Any) -> dict[str, Any]:
+    """Return mapping-like source payloads as mutable records owned by stats stages."""
+    return value if isinstance(value, dict) else {}
+
+
+def as_finite_number(value: Any) -> float | None:
+    """Return finite numeric source values from source payload fields."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric_value if math.isfinite(numeric_value) else None
 
 
 def normalize_model_token(value: str) -> str:

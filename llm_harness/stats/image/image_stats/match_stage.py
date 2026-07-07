@@ -2,26 +2,28 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from ...utils import as_record
-from ..matcher import get_image_match_model_mapping
+from ..matcher import ImageMatchMappedModel, get_image_match_model_mapping
 from .types import ImageSourceData, ImageUnionRow
 
 
 def _merge_image_row(
     source_data: ImageSourceData,
-    mapped_model: dict[str, object],
+    mapped_model: ImageMatchMappedModel,
 ) -> ImageUnionRow:
     """Merge the image row."""
     best_match = mapped_model.get("best_match")
-    best_match = best_match if isinstance(best_match, dict) else None
+    best_match_payload = cast(dict[str, Any] | None, best_match)
     arena_model_name = best_match.get("arena_model") if best_match else None
     arena_model_name = arena_model_name if isinstance(arena_model_name, str) else None
     return {
         "artificial_analysis_slug": mapped_model.get("artificial_analysis_slug") if isinstance(mapped_model.get("artificial_analysis_slug"), str) else None,
         "artificial_analysis_name": mapped_model.get("artificial_analysis_name") if isinstance(mapped_model.get("artificial_analysis_name"), str) else None,
         "artificial_analysis_provider": mapped_model.get("artificial_analysis_provider") if isinstance(mapped_model.get("artificial_analysis_provider"), str) else None,
-        "best_match": best_match,
-        "candidates": mapped_model.get("candidates") if isinstance(mapped_model.get("candidates"), list) else [],
+        "best_match": best_match_payload,
+        "candidates": cast(list[dict[str, Any]], mapped_model.get("candidates") or []),
         "artificial_analysis": source_data["artificial_analysis_models_by_slug"].get(mapped_model.get("artificial_analysis_slug"))
         if isinstance(mapped_model.get("artificial_analysis_slug"), str)
         else None,
@@ -37,15 +39,12 @@ def build_matched_rows(source_data: ImageSourceData) -> list[ImageUnionRow]:
             "arena_models": source_data["arena_payload"].get("rows") or [],
         }
     )
-    matched_rows = [_merge_image_row(source_data, model) for model in mapping.get("models") or [] if isinstance(model, dict)]
+    mapped_models = [cast(ImageMatchMappedModel, model) for model in mapping.get("models") or [] if isinstance(model, dict)]
+    matched_rows = [_merge_image_row(source_data, model) for model in mapped_models]
     matched_arena_names = {
-        arena_model_name
-        for model in mapping.get("models") or []
-        if isinstance(model, dict)
-        for arena_model_name in [as_record(model.get("best_match")).get("arena_model")]
-        if isinstance(arena_model_name, str)
+        arena_model_name for model in mapped_models for arena_model_name in [as_record(model.get("best_match")).get("arena_model")] if isinstance(arena_model_name, str)
     }
-    unmatched_arena_rows = [
+    unmatched_arena_rows: list[ImageUnionRow] = [
         {
             "artificial_analysis_slug": None,
             "artificial_analysis_name": None,

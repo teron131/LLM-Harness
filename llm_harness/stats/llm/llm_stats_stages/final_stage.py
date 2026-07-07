@@ -152,13 +152,15 @@ def build_final_payload(
         for row in rows
     ]
     models = attach_relative_scores(models)
+
+    def intelligence_sort_score(model: dict[str, Any]) -> float:
+        """Sort missing intelligence scores below real zero scores."""
+        score = as_finite_number(as_record(model.get("relative_scores")).get("intelligence_score"))
+        return score if score is not None else float("-inf")
+
     models.sort(
         key=lambda model: (
-            -(
-                as_finite_number(as_record(model.get("relative_scores")).get("intelligence_score"))
-                if as_finite_number(as_record(model.get("relative_scores")).get("intelligence_score")) is not None
-                else float("-inf")
-            ),
+            -intelligence_sort_score(model),
             model.get("id") or "",
         )
     )

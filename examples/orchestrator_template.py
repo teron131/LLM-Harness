@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,13 @@ from llm_harness.agents.orchestrator import (
 class ToolBindableFakeChatModel(FakeMessagesListChatModel):
     """Fake chat model that can run through create_agent tool-binding paths."""
 
-    def bind_tools(self, tools: list[Any], *, tool_choice: str | None = None, **kwargs: Any):
+    def bind_tools(
+        self,
+        tools: Sequence[Any],
+        *,
+        tool_choice: str | None = None,
+        **kwargs: Any,
+    ) -> Any:
         """Return self so the fake model can drive deterministic tool calls."""
         _ = tools, tool_choice, kwargs
         return self

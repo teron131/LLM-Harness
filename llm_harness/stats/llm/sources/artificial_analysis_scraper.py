@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import json
 import re
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import httpx
 
@@ -303,7 +303,8 @@ def _build_row_selection_context(row: dict[str, Any]) -> dict[str, Any]:
     provider_slug = _get_provider_slug(row, creator)
     model_slug = row.get("slug") if isinstance(row.get("slug"), str) and row.get("slug") else None
     creator_slug = model_creators.get("slug") if isinstance(model_creators.get("slug"), str) and model_creators.get("slug") else provider_slug
-    model_url_slug = row.get("model_url").removeprefix("/models/") if isinstance(row.get("model_url"), str) else None
+    model_url = row.get("model_url")
+    model_url_slug = model_url.removeprefix("/models/") if isinstance(model_url, str) else None
     return {
         "creator": creator,
         "model_creators": model_creators,
@@ -471,10 +472,11 @@ def _get_option(
     camel_key: str,
 ) -> Any:
     """Return option."""
-    if snake_key in options:
-        return options[snake_key]  # type: ignore[literal-required]
-    if camel_key in options:
-        return options[camel_key]  # type: ignore[literal-required]
+    option_values = cast(dict[str, Any], options)
+    if snake_key in option_values:
+        return option_values[snake_key]
+    if camel_key in option_values:
+        return option_values[camel_key]
     return None
 
 
@@ -544,6 +546,6 @@ def get_artificial_analysis_scraped_evals_only_stats(
     options: ArtificialAnalysisScraperOptions | None = None,
 ) -> ArtificialAnalysisScrapedRawPayload:
     """Return artificial analysis scraped evals only stats."""
-    merged_options = dict(options or {})
+    merged_options = cast(ArtificialAnalysisScraperOptions, dict(options or {}))
     merged_options["selected_columns"] = list(ARTIFICIAL_ANALYSIS_EVALS_ONLY_COLUMNS)
     return get_artificial_analysis_scraped_stats(merged_options)
