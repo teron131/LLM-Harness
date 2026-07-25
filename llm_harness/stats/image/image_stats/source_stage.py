@@ -16,6 +16,14 @@ def fetch_source_data() -> ImageSourceData:
     return {
         "artificial_analysis_payload": artificial_analysis_payload,
         "arena_payload": arena_payload,
-        "artificial_analysis_models_by_slug": {model["slug"]: model for model in artificial_analysis_models if isinstance(model, dict) and isinstance(model.get("slug"), str)},
-        "arena_models_by_name": {model["model"]: model for model in arena_models if isinstance(model, dict) and isinstance(model.get("model"), str)},
+        "artificial_analysis_models_by_slug": {
+            model["slug"]: model
+            for model in artificial_analysis_models
+            if isinstance(model, dict) and isinstance(model.get("slug"), str)
+        },
+        "arena_models_by_name": {
+            model["model"]: model
+            for model in arena_models
+            if isinstance(model, dict) and isinstance(model.get("model"), str)
+        },
     }

@@ -55,7 +55,10 @@ def _create_file_block(filename: str, data_url: str) -> dict[str, Any]:
 
 def _create_audio_block(encoded_data: str, format: str) -> dict[str, Any]:
     """Create audio content block for Chat Completions API."""
-    return {"type": "input_audio", "input_audio": {"data": encoded_data, "format": format}}
+    return {
+        "type": "input_audio",
+        "input_audio": {"data": encoded_data, "format": format},
+    }
 
 
 class MediaMessage(HumanMessage):
@@ -90,11 +93,19 @@ class MediaMessage(HumanMessage):
             raise ValueError("Either 'paths' or 'media' must be provided")
 
         # Normalize to list
-        items = [media_input] if isinstance(media_input, (str, Path, bytes)) else list(media_input)
+        items = (
+            [media_input]
+            if isinstance(media_input, (str, Path, bytes))
+            else list(media_input)
+        )
 
         content_blocks: list[dict[str, Any]] = []
         for idx, item in enumerate(items, 1):
-            blocks = self._from_bytes(item, mime_type) if isinstance(item, bytes) else self._from_path(Path(item))
+            blocks = (
+                self._from_bytes(item, mime_type)
+                if isinstance(item, bytes)
+                else self._from_path(Path(item))
+            )
 
             if label_pages and blocks:
                 content_blocks.append(_create_text_block(f"Page {idx}:"))

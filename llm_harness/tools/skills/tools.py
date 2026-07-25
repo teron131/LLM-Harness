@@ -107,7 +107,9 @@ def _discover_skills_for_path(path: str) -> tuple[list[SkillsFile], Path]:
     return _discover_skills_files(search_path, root_dir=skills_root), skills_root
 
 
-def _search_skills_signature(skills_files: list[SkillsFile]) -> tuple[tuple[str, int, int], ...]:
+def _search_skills_signature(
+    skills_files: list[SkillsFile],
+) -> tuple[tuple[str, int, int], ...]:
     """Return one stable cache signature for the current skills files."""
     return tuple(
         (
@@ -126,7 +128,9 @@ def _iter_skills_paths(search_path: Path) -> list[Path]:
 
     discovered_paths: list[Path] = []
     for current_root, dir_names, file_names in os.walk(search_path):
-        dir_names[:] = sorted(name for name in dir_names if name not in IGNORED_DIR_NAMES)
+        dir_names[:] = sorted(
+            name for name in dir_names if name not in IGNORED_DIR_NAMES
+        )
         for file_name in sorted(file_names):
             if file_name == SKILL_FILENAME:
                 discovered_paths.append(Path(current_root) / file_name)
@@ -198,7 +202,9 @@ def _iter_resource_paths(skills_root: Path, resource_dir_name: str) -> list[Path
 
     discovered_paths: list[Path] = []
     for current_root, dir_names, file_names in os.walk(resource_root):
-        dir_names[:] = sorted(name for name in dir_names if name not in IGNORED_DIR_NAMES)
+        dir_names[:] = sorted(
+            name for name in dir_names if name not in IGNORED_DIR_NAMES
+        )
         for file_name in sorted(file_names):
             discovered_paths.append(Path(current_root) / file_name)
     return discovered_paths
@@ -215,13 +221,27 @@ def _skills_metadata(
     description = skills_file.frontmatter.get("description")
 
     if not isinstance(skills_name, str) or not skills_name.strip():
-        return None, f"{skills_file.relative_path}: missing required frontmatter field 'name'"
-    if not SKILLS_NAME_PATTERN.fullmatch(skills_name) or skills_name.startswith("-") or skills_name.endswith("-") or "--" in skills_name:
+        return (
+            None,
+            f"{skills_file.relative_path}: missing required frontmatter field 'name'",
+        )
+    if (
+        not SKILLS_NAME_PATTERN.fullmatch(skills_name)
+        or skills_name.startswith("-")
+        or skills_name.endswith("-")
+        or "--" in skills_name
+    ):
         return None, f"{skills_file.relative_path}: invalid skills name '{skills_name}'"
     if skills_file.skills_root.name != skills_name:
-        return None, f"{skills_file.relative_path}: skills name '{skills_name}' must match parent directory '{skills_file.skills_root.name}'"
+        return (
+            None,
+            f"{skills_file.relative_path}: skills name '{skills_name}' must match parent directory '{skills_file.skills_root.name}'",
+        )
     if not isinstance(description, str) or not description.strip():
-        return None, f"{skills_file.relative_path}: missing required frontmatter field 'description'"
+        return (
+            None,
+            f"{skills_file.relative_path}: missing required frontmatter field 'description'",
+        )
 
     return {
         "path": skills_file.relative_path,
@@ -335,16 +355,28 @@ def _result_payload(
     return result
 
 
-def _searchable_skills_entry(skills_file: SkillsFile) -> tuple[tuple[dict[str, Any], str] | None, str | None]:
+def _searchable_skills_entry(
+    skills_file: SkillsFile,
+) -> tuple[tuple[dict[str, Any], str] | None, str | None]:
     """Return one searchable metadata payload plus embedding text."""
     metadata, error_message = _skills_metadata(skills_file)
     if metadata is None:
         return None, error_message
 
     aliases = skills_file.frontmatter.get("aliases")
-    alias_text = ", ".join(alias for alias in aliases if isinstance(alias, str) and alias.strip()) if isinstance(aliases, list) else ""
+    alias_text = (
+        ", ".join(
+            alias for alias in aliases if isinstance(alias, str) and alias.strip()
+        )
+        if isinstance(aliases, list)
+        else ""
+    )
     tags = skills_file.frontmatter.get("tags")
-    tag_text = ", ".join(tag for tag in tags if isinstance(tag, str) and tag.strip()) if isinstance(tags, list) else ""
+    tag_text = (
+        ", ".join(tag for tag in tags if isinstance(tag, str) and tag.strip())
+        if isinstance(tags, list)
+        else ""
+    )
     parts = [
         f"Description: {metadata['description']}",
         f"Skills: {metadata['name']}",
@@ -361,7 +393,10 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
     if not left or not right or len(left) != len(right):
         return 0.0
 
-    dot_product = sum(left_value * right_value for left_value, right_value in zip(left, right, strict=False))
+    dot_product = sum(
+        left_value * right_value
+        for left_value, right_value in zip(left, right, strict=False)
+    )
     left_norm = math.sqrt(sum(value * value for value in left))
     right_norm = math.sqrt(sum(value * value for value in right))
     if left_norm == 0.0 or right_norm == 0.0:
@@ -476,7 +511,9 @@ def search_skills(
     bounded_top_k = max(0, top_k)
     scored_skills = []
     for entry in index.entries:
-        score = _cosine_similarity(entry.embedding, [float(value) for value in query_embedding])
+        score = _cosine_similarity(
+            entry.embedding, [float(value) for value in query_embedding]
+        )
         if score < score_threshold:
             continue
         scored_skills.append(

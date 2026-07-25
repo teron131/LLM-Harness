@@ -48,7 +48,12 @@ def get_image_stats_selected(
         if model_id is None:
             cached_payload = load_image_stats_selected_from_cache(DEFAULT_OUTPUT_PATH)
             if cached_payload is not None:
-                return cast(ImageStatsSelectedPayload, ImageStatsSelectedPayloadModel.model_validate(cached_payload).model_dump())
+                return cast(
+                    ImageStatsSelectedPayload,
+                    ImageStatsSelectedPayloadModel.model_validate(
+                        cached_payload
+                    ).model_dump(),
+                )
         source_data = fetch_source_data()
         matched_rows = build_matched_rows(source_data)
         models = build_final_models(matched_rows, model_id)

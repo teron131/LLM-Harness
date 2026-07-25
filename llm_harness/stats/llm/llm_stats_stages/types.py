@@ -105,10 +105,14 @@ class ScoringConfigModel(BaseModel):
 
     intelligence_benchmark_keys: list[str] = Field(default_factory=list)
     agentic_benchmark_keys: list[str] = Field(default_factory=list)
-    default_speed_output_token_anchors: list[int] = Field(default_factory=lambda: [200, 500, 1_000, 2_000, 8_000])
+    default_speed_output_token_anchors: list[int] = Field(
+        default_factory=lambda: [200, 500, 1_000, 2_000, 8_000]
+    )
     speed_output_token_range_min: int = 200
     speed_output_token_range_max: int = 8_000
-    speed_anchor_quantiles: list[float] = Field(default_factory=lambda: [0.25, 0.5, 0.75])
+    speed_anchor_quantiles: list[float] = Field(
+        default_factory=lambda: [0.25, 0.5, 0.75]
+    )
     weighted_price_input_ratio: float = 0.75
     weighted_price_output_ratio: float = 0.25
 

@@ -13,26 +13,48 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
 
-from ..tools import list_skills, load_skills, make_fs_tools, make_sql_tools, make_tabular_tools, scrape_youtube_tool, search_skills, webloader_tool
+from ..tools import (
+    list_skills,
+    load_skills,
+    make_fs_tools,
+    make_sql_tools,
+    make_tabular_tools,
+    scrape_youtube_tool,
+    search_skills,
+    webloader_tool,
+)
 
 
 class StageInvocation(BaseModel):
     """Minimal input exposed by each coarse stage tool."""
 
     message: str = Field(description="Task or request for this stage.")
-    context: dict[str, Any] = Field(default_factory=dict, description="Optional compact context from the parent orchestrator.")
+    context: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional compact context from the parent orchestrator.",
+    )
 
 
 class StageResult(BaseModel):
     """Compact result returned from a stage tool to the parent orchestrator."""
 
-    status: str = Field(default="ok", description="Stage status such as ok, blocked, error, or complete.")
+    status: str = Field(
+        default="ok",
+        description="Stage status such as ok, blocked, error, or complete.",
+    )
     content: str = Field(default="", description="Short stage-facing result text.")
-    artifact: dict[str, Any] = Field(default_factory=dict, description="Structured payload worth preserving outside the chat text.")
-    trace: list[str] = Field(default_factory=list, description="Compact stage trace messages.")
+    artifact: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Structured payload worth preserving outside the chat text.",
+    )
+    trace: list[str] = Field(
+        default_factory=list, description="Compact stage trace messages."
+    )
 
 
-StageCallable = Callable[[StageInvocation], StageResult | BaseModel | Mapping[str, Any] | str]
+StageCallable = Callable[
+    [StageInvocation], StageResult | BaseModel | Mapping[str, Any] | str
+]
 GraphInputBuilder = Callable[[StageInvocation], Mapping[str, Any] | BaseModel]
 GraphOutputBuilder = Callable[[Any], StageResult | BaseModel | Mapping[str, Any] | str]
 
@@ -69,7 +91,9 @@ def make_orchestrator_tools(
     tool_names: Sequence[str] | None = None,
 ) -> list[BaseTool]:
     """Compose the general-purpose tools exported by the repo for an orchestrator."""
-    resolved_root_dir = Path.cwd() if root_dir is None else Path(root_dir).expanduser().resolve()
+    resolved_root_dir = (
+        Path.cwd() if root_dir is None else Path(root_dir).expanduser().resolve()
+    )
     tools: list[BaseTool] = []
     if include_fs_writes:
         tools.extend(make_fs_tools(root_dir=resolved_root_dir))
@@ -111,7 +135,9 @@ def _message_content(message: BaseMessage) -> str:
     return str(message.content or "").strip()
 
 
-def coerce_stage_result(value: StageResult | BaseModel | Mapping[str, Any] | str) -> StageResult:
+def coerce_stage_result(
+    value: StageResult | BaseModel | Mapping[str, Any] | str,
+) -> StageResult:
     """Normalize any supported stage return value into the shared result contract."""
     if isinstance(value, StageResult):
         return value
@@ -144,9 +170,13 @@ def stage_tool_from_callable(
 ) -> BaseTool:
     """Wrap a plain Python stage as a coarse LangChain tool."""
 
-    def stage_tool(message: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    def stage_tool(
+        message: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Run the wrapped stage with a compact message and optional context."""
-        result = coerce_stage_result(run(StageInvocation(message=message, context=context or {})))
+        result = coerce_stage_result(
+            run(StageInvocation(message=message, context=context or {}))
+        )
         return result.model_dump(mode="json")
 
     return StructuredTool.from_function(
@@ -168,7 +198,11 @@ def stage_tool_from_graph(
     """Wrap a compiled LangGraph as a coarse LangChain tool."""
 
     def run_graph(invocation: StageInvocation) -> StageResult:
-        graph_input = build_input(invocation) if build_input else invocation.model_dump(mode="python")
+        graph_input = (
+            build_input(invocation)
+            if build_input
+            else invocation.model_dump(mode="python")
+        )
         graph_result = graph.invoke(graph_input)
         result_payload = build_output(graph_result) if build_output else graph_result
         return coerce_stage_result(result_payload)
@@ -225,7 +259,9 @@ def stage_tool_from_react_agent(
     )
 
     def run_agent(invocation: StageInvocation) -> StageResult:
-        response = agent.invoke({"messages": [HumanMessage(content=invocation.message)]})
+        response = agent.invoke(
+            {"messages": [HumanMessage(content=invocation.message)]}
+        )
         return _react_agent_result(response)
 
     return stage_tool_from_callable(

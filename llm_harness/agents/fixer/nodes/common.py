@@ -49,7 +49,9 @@ class _FixerProgress:
             last_remaining_block=state.last_remaining_block,
         )
 
-    def build_result(self, *, iteration: int, completed: bool, last_text: str) -> dict[str, object]:
+    def build_result(
+        self, *, iteration: int, completed: bool, last_text: str
+    ) -> dict[str, object]:
         """Build the public-facing fixer result fields."""
         return {
             "iteration": iteration,
@@ -124,7 +126,9 @@ def _restore_best_snapshot(
     current_disk_text = runtime.fs.read_text(runtime.target_path)
     if current_disk_text != progress.best_text:
         runtime.fs.write_text(runtime.target_path, progress.best_text)
-    return _append_write_note(progress.best_notes, "restored best snapshot after max_turns")
+    return _append_write_note(
+        progress.best_notes, "restored best snapshot after max_turns"
+    )
 
 
 def _build_runtime(state: FixerState) -> _FixerRuntime:
@@ -149,7 +153,10 @@ def _continue_or_finalize(
     """Continue the loop or finalize when the turn budget is reached."""
     if iteration >= max_iterations:
         if restore_best_on_failure:
-            progress.fixer_notes = _restore_best_snapshot(runtime=runtime, progress=progress) or progress.fixer_notes
+            progress.fixer_notes = (
+                _restore_best_snapshot(runtime=runtime, progress=progress)
+                or progress.fixer_notes
+            )
         logger.warning("[FIXER] Stop reason=max_turns after passes=%s", max_iterations)
         return (
             progress.state_update()

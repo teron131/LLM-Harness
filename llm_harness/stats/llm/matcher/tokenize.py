@@ -38,7 +38,12 @@ def _split_mixed_alphanumeric_token(token: str) -> list[str]:
 
 def split_tokens(value: str) -> list[str]:
     """Split LLM model tokenization into normalized tokens."""
-    return [token for chunk in normalize_model_token(value).split("-") for token in _split_mixed_alphanumeric_token(chunk) if token and token not in MODEL_NAME_TAG_TOKENS]
+    return [
+        token
+        for chunk in normalize_model_token(value).split("-")
+        for token in _split_mixed_alphanumeric_token(chunk)
+        if token and token not in MODEL_NAME_TAG_TOKENS
+    ]
 
 
 def split_base_model_tokens(model_id: str) -> list[str]:
@@ -93,7 +98,11 @@ def parse_active_b_token(token: str | None) -> int | None:
 
 def parsed_numeric_tokens(tokens: list[str]) -> list[int]:
     """Helper for parsed numeric tokens."""
-    return [value for value in (parse_numeric_or_b_scale_token(token) for token in tokens) if value is not None]
+    return [
+        value
+        for value in (parse_numeric_or_b_scale_token(token) for token in tokens)
+        if value is not None
+    ]
 
 
 def common_prefix_length(left: str, right: str) -> int:

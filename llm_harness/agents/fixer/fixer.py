@@ -19,7 +19,9 @@ def _resolve_model_name(model: str | None) -> str:
     """Resolve the fixer model name from the explicit arg or environment."""
     resolved_model = model or os.getenv("FAST_LLM")
     if not resolved_model:
-        raise ValueError("No model configured. Pass `fixer_model=...` or set `FAST_LLM`.")
+        raise ValueError(
+            "No model configured. Pass `fixer_model=...` or set `FAST_LLM`."
+        )
     return resolved_model
 
 
@@ -54,7 +56,9 @@ def fix_file(
     restore_best_on_failure: bool = True,
 ) -> dict[str, object]:
     """Run the fixer graph on a target UTF-8 text file."""
-    target_path, resolved_root_dir, target_file = _resolve_target(path=path, root_dir=root_dir)
+    target_path, resolved_root_dir, target_file = _resolve_target(
+        path=path, root_dir=root_dir
+    )
 
     fixer_input = FixerInput(
         root_dir=str(resolved_root_dir),

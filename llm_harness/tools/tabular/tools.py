@@ -23,8 +23,18 @@ from .ingestion import (
     tabular_summary,
     tabular_summary_from_counts,
 )
-from .segmentation import compute_region_boxes, header_candidates, profile_region_boxes, segment_tabular_blocks
-from .storage import fingerprint, fingerprint_from_samples, load_tables_into_sqlite, resolve_root_dir
+from .segmentation import (
+    compute_region_boxes,
+    header_candidates,
+    profile_region_boxes,
+    segment_tabular_blocks,
+)
+from .storage import (
+    fingerprint,
+    fingerprint_from_samples,
+    load_tables_into_sqlite,
+    resolve_root_dir,
+)
 
 
 def _inspect_tabular_file(
@@ -66,7 +76,9 @@ def _inspect_tabular_file(
         safe_end_col = column_count if end_col is None else max(safe_start_col, end_col)
         end_row = safe_start + safe_limit - 1
         selected_source_rows = rows[safe_start - 1 : end_row]
-        selected_rows = [row[safe_start_col - 1 : safe_end_col] for row in selected_source_rows]
+        selected_rows = [
+            row[safe_start_col - 1 : safe_end_col] for row in selected_source_rows
+        ]
         summary_payload = tabular_summary_from_counts(
             row_count=row_count,
             column_count=column_count,
@@ -84,9 +96,13 @@ def _inspect_tabular_file(
         "preview_row_count": preview_row_count,
         "preview_column_count": preview_column_count,
         "start_row": safe_start,
-        "end_row": safe_start + preview_row_count - 1 if selected_rows else safe_start - 1,
+        "end_row": safe_start + preview_row_count - 1
+        if selected_rows
+        else safe_start - 1,
         "start_col": safe_start_col,
-        "end_col": safe_start_col + preview_column_count - 1 if selected_rows else safe_start_col - 1,
+        "end_col": safe_start_col + preview_column_count - 1
+        if selected_rows
+        else safe_start_col - 1,
         "rows": selected_rows,
     }
 
@@ -110,7 +126,11 @@ def _profile_tabular_file(
         )
         return {
             "path": str(path),
-            **{key: value for key, value in summary.items() if key not in {"top_rows", "bottom_rows"}},
+            **{
+                key: value
+                for key, value in summary.items()
+                if key not in {"top_rows", "bottom_rows"}
+            },
             "fingerprint": profile_fingerprint,
         }
 
@@ -130,7 +150,9 @@ def _profile_tabular_file(
         "non_empty_row_count": len(non_empty_counts),
         "blank_row_count": len(rows) - len(non_empty_counts),
         "max_non_empty_cells_in_row": max(non_empty_counts, default=0),
-        "median_non_empty_cells_per_non_blank_row": statistics.median(non_empty_counts) if non_empty_counts else 0,
+        "median_non_empty_cells_per_non_blank_row": statistics.median(non_empty_counts)
+        if non_empty_counts
+        else 0,
         "sample_rows": rows[:max_sample_rows],
         "header_candidates": detected_header_candidates,
         "regions": profile_region_boxes(region_boxes),
@@ -170,7 +192,9 @@ def _extract_tabular_file(
 ) -> dict[str, Any]:
     """Extract tables and load them into the shared SQLite cache."""
     if path.suffix.lower() == ".csv" and path.stat().st_size > MAX_FULL_EXTRACT_BYTES:
-        raise ValueError(f"CSV extraction currently requires a full in-memory layout pass and is capped at {MAX_FULL_EXTRACT_BYTES} bytes for safety: {path}")
+        raise ValueError(
+            f"CSV extraction currently requires a full in-memory layout pass and is capped at {MAX_FULL_EXTRACT_BYTES} bytes for safety: {path}"
+        )
 
     profile = _profile_tabular_file(path, max_sample_rows=sample_rows, sheet=sheet)
     recovered = _recover_tabular_blocks(
@@ -232,7 +256,9 @@ def make_tabular_tools(*, root_dir: str | Path | None = None):
         )
 
     @tool(parse_docstring=True)
-    def profile_tabular(path: str, max_sample_rows: int = MAX_SAMPLE_ROWS, sheet: str | None = None) -> dict[str, Any]:
+    def profile_tabular(
+        path: str, max_sample_rows: int = MAX_SAMPLE_ROWS, sheet: str | None = None
+    ) -> dict[str, Any]:
         """Profile a CSV or XLSX file with read-only structural hints.
 
         Args:

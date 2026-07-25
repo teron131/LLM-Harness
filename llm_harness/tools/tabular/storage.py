@@ -122,7 +122,11 @@ def _content_id(columns: list[str], rows: list[list[str]]) -> str:
 
 def resolve_root_dir(*, root_dir: str | Path | None = None) -> Path:
     """Resolve the tabular workspace root, defaulting to the current working directory."""
-    return Path.cwd().resolve() if root_dir is None else Path(root_dir).expanduser().resolve()
+    return (
+        Path.cwd().resolve()
+        if root_dir is None
+        else Path(root_dir).expanduser().resolve()
+    )
 
 
 def sqlite_database_path(*, root_dir: str | Path | None = None) -> Path:
@@ -145,7 +149,9 @@ def sqlite_write_lock(database_path: Path):
             break
         except FileExistsError as error:
             if time.monotonic() - start_time >= LOCK_TIMEOUT_SECONDS:
-                raise TimeoutError(f"Timed out waiting for SQLite lock: {lock_path}") from error
+                raise TimeoutError(
+                    f"Timed out waiting for SQLite lock: {lock_path}"
+                ) from error
             time.sleep(LOCK_POLL_SECONDS)
 
     try:
@@ -175,7 +181,9 @@ def _db_column_names(columns: list[str]) -> list[str]:
     return normalized
 
 
-def _create_sqlite_sources_table(connection: sqlite3.Connection, *, table_name: str = SQLITE_SOURCES_TABLE) -> None:
+def _create_sqlite_sources_table(
+    connection: sqlite3.Connection, *, table_name: str = SQLITE_SOURCES_TABLE
+) -> None:
     """Create the source-linkage table for extracted content."""
     connection.execute(
         f"""
@@ -194,16 +202,30 @@ def _create_sqlite_sources_table(connection: sqlite3.Connection, *, table_name: 
 
 def _sqlite_table_columns(connection: sqlite3.Connection, table_name: str) -> list[str]:
     """Return the current column names for a SQLite table."""
-    return [cast(str, row[1]) for row in connection.execute(f"PRAGMA table_info({quote_identifier(table_name)})").fetchall()]
+    return [
+        cast(str, row[1])
+        for row in connection.execute(
+            f"PRAGMA table_info({quote_identifier(table_name)})"
+        ).fetchall()
+    ]
 
 
-def _sqlite_unique_indexes(connection: sqlite3.Connection, table_name: str) -> list[tuple[str, ...]]:
+def _sqlite_unique_indexes(
+    connection: sqlite3.Connection, table_name: str
+) -> list[tuple[str, ...]]:
     """Return unique-index column tuples for a SQLite table."""
     unique_indexes: list[tuple[str, ...]] = []
-    for _, index_name, is_unique, *_ in connection.execute(f"PRAGMA index_list({quote_identifier(table_name)})").fetchall():
+    for _, index_name, is_unique, *_ in connection.execute(
+        f"PRAGMA index_list({quote_identifier(table_name)})"
+    ).fetchall():
         if not is_unique:
             continue
-        columns = tuple(cast(str, row[2]) for row in connection.execute(f"PRAGMA index_info({quote_identifier(cast(str, index_name))})").fetchall())
+        columns = tuple(
+            cast(str, row[2])
+            for row in connection.execute(
+                f"PRAGMA index_info({quote_identifier(cast(str, index_name))})"
+            ).fetchall()
+        )
         unique_indexes.append(columns)
     return unique_indexes
 
@@ -217,7 +239,9 @@ def _ensure_sqlite_sources_table_schema(connection: sqlite3.Connection) -> None:
 
     existing_columns = set(columns)
     has_expected_columns = existing_columns == SQLITE_SOURCES_COLUMN_SET
-    has_expected_unique_key = SQLITE_SOURCES_UNIQUE_COLUMNS in _sqlite_unique_indexes(connection, SQLITE_SOURCES_TABLE)
+    has_expected_unique_key = SQLITE_SOURCES_UNIQUE_COLUMNS in _sqlite_unique_indexes(
+        connection, SQLITE_SOURCES_TABLE
+    )
     if has_expected_columns and has_expected_unique_key:
         return
 
@@ -275,11 +299,18 @@ def _infer_column_type(values: Iterable[str]) -> str:
         return "TEXT"
     if all(_is_integer_value(value) for value in non_empty_values):
         return "INTEGER"
-    if all(_is_integer_value(value) or _is_real_value(value) for value in non_empty_values):
+    if all(
+        _is_integer_value(value) or _is_real_value(value) for value in non_empty_values
+    ):
         return "REAL"
-    if all(_matches_datetime_patterns(value, DATETIME_PATTERNS) for value in non_empty_values):
+    if all(
+        _matches_datetime_patterns(value, DATETIME_PATTERNS)
+        for value in non_empty_values
+    ):
         return "DATETIME"
-    if all(_matches_datetime_patterns(value, DATE_PATTERNS) for value in non_empty_values):
+    if all(
+        _matches_datetime_patterns(value, DATE_PATTERNS) for value in non_empty_values
+    ):
         return "DATE"
     return "TEXT"
 
@@ -312,8 +343,16 @@ def _create_typed_sqlite_view(
 ) -> tuple[str, dict[str, str]]:
     """Create or replace a typed view alongside a raw extracted table."""
     typed_view_name = f"{table_name}_typed"
-    inferred_types = {column_name: _infer_column_type(row[column_index] if column_index < len(row) else "" for row in rows) for column_index, column_name in enumerate(db_columns)}
-    select_sql = ", ".join(_typed_view_expression(column_name, inferred_types[column_name]) for column_name in db_columns)
+    inferred_types = {
+        column_name: _infer_column_type(
+            row[column_index] if column_index < len(row) else "" for row in rows
+        )
+        for column_index, column_name in enumerate(db_columns)
+    }
+    select_sql = ", ".join(
+        _typed_view_expression(column_name, inferred_types[column_name])
+        for column_name in db_columns
+    )
     connection.execute(f"DROP VIEW IF EXISTS {quote_identifier(typed_view_name)}")
     connection.execute(
         f"""
@@ -352,7 +391,9 @@ def _create_sqlite_table(
     column_sql = ", ".join(f"{quote_identifier(column)} TEXT" for column in columns)
     connection.execute(f"CREATE TABLE {quote_identifier(table_name)} ({column_sql})")
     placeholder_sql = ", ".join("?" for _ in columns)
-    insert_sql = f"INSERT INTO {quote_identifier(table_name)} VALUES ({placeholder_sql})"
+    insert_sql = (
+        f"INSERT INTO {quote_identifier(table_name)} VALUES ({placeholder_sql})"
+    )
 
     for start_index in range(0, len(rows), INSERT_BATCH_SIZE):
         batch = rows[start_index : start_index + INSERT_BATCH_SIZE]
@@ -449,11 +490,13 @@ def load_tables_into_sqlite(
             for table in recovered["tables"]:
                 columns = list(table["columns"])
                 rows = list(table["rows"])
-                content_id, table_name, db_columns, load_status = _load_or_reuse_content_table(
-                    connection,
-                    columns=columns,
-                    rows=rows,
-                    source_format=source_format,
+                content_id, table_name, db_columns, load_status = (
+                    _load_or_reuse_content_table(
+                        connection,
+                        columns=columns,
+                        rows=rows,
+                        source_format=source_format,
+                    )
                 )
                 typed_view_name, typed_columns = _create_typed_sqlite_view(
                     connection,

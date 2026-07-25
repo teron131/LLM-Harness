@@ -12,7 +12,11 @@ from ...clients.openai import ChatOpenAI
 from ...tools.fs.fast_copy import filter_content, tag_content, untag_content
 from ...tools.youtube.scraper import get_transcript
 from ...utils.youtube_utils import is_youtube_url
-from .prompts import get_garbage_filter_prompt, get_langchain_summary_prompt, get_quality_check_prompt
+from .prompts import (
+    get_garbage_filter_prompt,
+    get_langchain_summary_prompt,
+    get_quality_check_prompt,
+)
 from .schemas import (
     GarbageIdentification,
     Quality,
@@ -130,10 +134,14 @@ def quality_node(state: SummarizerState) -> dict[str, Any]:
 
     system_prompt = get_quality_check_prompt(target_language=state.target_language)
 
-    summary_json = state.summary.model_dump_json() if state.summary else "No summary provided"
+    summary_json = (
+        state.summary.model_dump_json() if state.summary else "No summary provided"
+    )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Transcript:\n{state.transcript}\n\nSummary:\n{summary_json}"),
+        HumanMessage(
+            content=f"Transcript:\n{state.transcript}\n\nSummary:\n{summary_json}"
+        ),
     ]
 
     raw_quality = llm.invoke(messages)
@@ -159,8 +167,14 @@ def should_continue(state: SummarizerState) -> str:
         print(f"✅ Complete: quality {quality_display}")
         return END
 
-    if state.quality and not state.quality.is_acceptable and state.iteration_count < MAX_ITERATIONS:
-        print(f"🔄 Refining: quality {quality_display} < {MIN_QUALITY_SCORE}% (iteration {state.iteration_count + 1})")
+    if (
+        state.quality
+        and not state.quality.is_acceptable
+        and state.iteration_count < MAX_ITERATIONS
+    ):
+        print(
+            f"🔄 Refining: quality {quality_display} < {MIN_QUALITY_SCORE}% (iteration {state.iteration_count + 1})"
+        )
         return "summary"
 
     print(f"⚠️ Stopping: quality {quality_display}, {state.iteration_count} iterations")

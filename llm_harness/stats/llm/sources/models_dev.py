@@ -82,10 +82,14 @@ def _rank_recent_models(
         {
             "row_index": row_index,
             "release_date": (row.get("model") or {}).get("release_date"),
-            "output_cost": as_finite_number(((row.get("model") or {}).get("cost") or {}).get("output")),
+            "output_cost": as_finite_number(
+                ((row.get("model") or {}).get("cost") or {}).get("output")
+            ),
         }
         for row_index, row in enumerate(models)
-        if _is_recent_date((row.get("model") or {}).get("release_date"), cutoff_iso_date)
+        if _is_recent_date(
+            (row.get("model") or {}).get("release_date"), cutoff_iso_date
+        )
     ]
     if not ranking_rows:
         return []

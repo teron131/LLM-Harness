@@ -81,7 +81,11 @@ def _is_table_header_at(
 
     row_non_empty = count_non_empty(row)
     expected_width = max(len(row), *(len(follower) for follower in followers))
-    consistent_followers = [follower for follower in followers if len(follower) == expected_width and count_non_empty(follower) >= 2]
+    consistent_followers = [
+        follower
+        for follower in followers
+        if len(follower) == expected_width and count_non_empty(follower) >= 2
+    ]
     min_followers = 2 if row_non_empty <= 3 else 1
     return len(consistent_followers) >= min_followers
 
@@ -101,10 +105,17 @@ def _has_stronger_header_ahead(
         if is_blank(row):
             continue
         stronger_non_empty = count_non_empty(row)
-        coverage_gain = sum(not current_cell.strip() and bool(future_cell.strip()) for current_cell, future_cell in zip(current_row, row, strict=False))
-        if _looks_like_header_prefix_row(current_row) and _is_table_header_at(rows, index):
+        coverage_gain = sum(
+            not current_cell.strip() and bool(future_cell.strip())
+            for current_cell, future_cell in zip(current_row, row, strict=False)
+        )
+        if _looks_like_header_prefix_row(current_row) and _is_table_header_at(
+            rows, index
+        ):
             return True
-        if _is_table_header_at(rows, index) and (stronger_non_empty >= current_non_empty + 4 or coverage_gain >= 2):
+        if _is_table_header_at(rows, index) and (
+            stronger_non_empty >= current_non_empty + 4 or coverage_gain >= 2
+        ):
             return True
     return False
 
@@ -112,7 +123,9 @@ def _has_stronger_header_ahead(
 def _data_row_threshold(rows: list[list[str]], header_index: int) -> int:
     """Estimate a minimum non-empty-cell threshold for follower rows."""
     followers = _collect_followers(rows, header_index, limit=5)
-    non_empty_counts = [count_non_empty(row) for row in followers if count_non_empty(row) > 0]
+    non_empty_counts = [
+        count_non_empty(row) for row in followers if count_non_empty(row) > 0
+    ]
     if not non_empty_counts:
         return 2
     median_non_empty = statistics.median(non_empty_counts)
@@ -188,7 +201,11 @@ def _find_header_region_boxes(
         [
             box
             for box in region_boxes
-            if box["row_start"] <= header_index <= box["row_end"] and any(box["column_start"] <= column <= box["column_end"] for column in header_active_columns)
+            if box["row_start"] <= header_index <= box["row_end"]
+            and any(
+                box["column_start"] <= column <= box["column_end"]
+                for column in header_active_columns
+            )
         ],
         key=lambda box: (box["column_start"], box["row_start"]),
     )
@@ -204,7 +221,11 @@ def _matches_table_span(
     minimum_cells: int,
 ) -> bool:
     """Check whether a row fits an established table span."""
-    active_columns = [column for column in _active_columns(row) if column_start <= column <= column_end]
+    active_columns = [
+        column
+        for column in _active_columns(row)
+        if column_start <= column <= column_end
+    ]
     if len(active_columns) < minimum_cells:
         return False
     if anchor_column not in active_columns:
@@ -241,10 +262,28 @@ def _extend_table(
     """Extend a table downward from its header until the structure breaks."""
     followers = _collect_followers(rows, header_index, limit=5)
     full_header_active_columns = _active_columns(rows[header_index])
-    expected_width = max(len(rows[header_index]), *(len(follower) for follower in followers))
-    column_start = region_box["column_start"] if region_box else (min(full_header_active_columns) if full_header_active_columns else 0)
-    column_end = region_box["column_end"] if region_box else (max(full_header_active_columns) if full_header_active_columns else expected_width - 1)
-    header_active_columns = [column for column in full_header_active_columns if column_start <= column <= column_end]
+    expected_width = max(
+        len(rows[header_index]), *(len(follower) for follower in followers)
+    )
+    column_start = (
+        region_box["column_start"]
+        if region_box
+        else (min(full_header_active_columns) if full_header_active_columns else 0)
+    )
+    column_end = (
+        region_box["column_end"]
+        if region_box
+        else (
+            max(full_header_active_columns)
+            if full_header_active_columns
+            else expected_width - 1
+        )
+    )
+    header_active_columns = [
+        column
+        for column in full_header_active_columns
+        if column_start <= column <= column_end
+    ]
     if not header_active_columns:
         return None
     max_row_end = region_box["row_end"] if region_box else len(rows) - 1
@@ -260,7 +299,9 @@ def _extend_table(
         if region_box
         else set()
     )
-    required_columns = (supported_columns - {anchor_column}) or set(header_active_columns[1:] or header_active_columns)
+    required_columns = (supported_columns - {anchor_column}) or set(
+        header_active_columns[1:] or header_active_columns
+    )
     minimum_cells = 2 if region_box else _data_row_threshold(rows, header_index)
     end_index = header_index
 
@@ -350,9 +391,16 @@ def _build_table_block(
 ) -> dict[str, Any]:
     """Build a table block summary for a detected region."""
     column_start = region_box["column_start"] if region_box else 0
-    column_end = region_box["column_end"] if region_box else max((len(row) for row in rows[start_index : end_index + 1]), default=0) - 1
+    column_end = (
+        region_box["column_end"]
+        if region_box
+        else max((len(row) for row in rows[start_index : end_index + 1]), default=0) - 1
+    )
     header = rows[start_index][column_start : column_end + 1]
-    data_rows = [row[column_start : column_end + 1] for row in rows[start_index + 1 : end_index + 1]]
+    data_rows = [
+        row[column_start : column_end + 1]
+        for row in rows[start_index + 1 : end_index + 1]
+    ]
 
     return {
         "name": f"table_{table_index}",
@@ -418,7 +466,10 @@ def _has_stronger_header_successor(
         if is_blank(future_row) or not _is_table_header_at(rows, future_index):
             continue
         future_non_empty = count_non_empty(future_row)
-        coverage_gain = sum(not current_cell.strip() and bool(future_cell.strip()) for current_cell, future_cell in zip(current_row, future_row, strict=False))
+        coverage_gain = sum(
+            not current_cell.strip() and bool(future_cell.strip())
+            for current_cell, future_cell in zip(current_row, future_row, strict=False)
+        )
         if future_non_empty >= current_non_empty + 2 or coverage_gain >= 2:
             return True
 
@@ -470,7 +521,9 @@ def header_candidates(
             {
                 "row": header_index + 1,
                 "non_empty_cells": count_non_empty(row),
-                "has_stronger_header_ahead": _has_stronger_header_ahead(rows, header_index),
+                "has_stronger_header_ahead": _has_stronger_header_ahead(
+                    rows, header_index
+                ),
                 "values": row,
             }
         )
@@ -519,7 +572,9 @@ def segment_tabular_blocks(
             index += 1
             continue
 
-        if not _is_table_header_at(rows, index) or _has_stronger_header_ahead(rows, index):
+        if not _is_table_header_at(rows, index) or _has_stronger_header_ahead(
+            rows, index
+        ):
             if metadata_start is None:
                 metadata_start = index
             index += 1

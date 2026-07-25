@@ -80,6 +80,10 @@ def _task_log_score(task_log: str) -> tuple[int, int] | None:
         return None
     done_lines, _ = sections
     remaining_action_names = _remaining_action_names(task_log)
-    strong_remaining = sum(1 for action in remaining_action_names if action in HIGH_PRIORITY_FIXER_ACTIONS)
-    soft_remaining = sum(1 for action in remaining_action_names if action in LOW_PRIORITY_FIXER_ACTIONS)
+    strong_remaining = sum(
+        1 for action in remaining_action_names if action in HIGH_PRIORITY_FIXER_ACTIONS
+    )
+    soft_remaining = sum(
+        1 for action in remaining_action_names if action in LOW_PRIORITY_FIXER_ACTIONS
+    )
     return strong_remaining, soft_remaining - len(done_lines)

@@ -129,7 +129,9 @@ def _run_fix_pass(
         max_turns=state.max_iterations,
         task_log=progress.fixer_notes,
     )
-    logger.info("[FIXER] Pass %s/%s chars=%s", turn, state.max_iterations, len(current_text))
+    logger.info(
+        "[FIXER] Pass %s/%s chars=%s", turn, state.max_iterations, len(current_text)
+    )
 
     system_prompt = state.fixer_system_prompt or DEFAULT_FIXER_SYSTEM_PROMPT
     base_prompt = build_fixer_agent_prompt(
@@ -169,7 +171,10 @@ def _handle_write_result(
         cost=write_result.cost,
     )
 
-    if write_result.write_error == EMPTY_EDIT_SENTINEL and write_result.after_text == current_text:
+    if (
+        write_result.write_error == EMPTY_EDIT_SENTINEL
+        and write_result.after_text == current_text
+    ):
         return progress.state_update() | {
             "iteration": turn,
             "review_kind": "empty_edit",
@@ -178,7 +183,9 @@ def _handle_write_result(
 
     if write_result.after_text is None:
         if write_result.write_error is not None:
-            progress.fixer_notes = _append_write_note(progress.fixer_notes, write_result.write_error)
+            progress.fixer_notes = _append_write_note(
+                progress.fixer_notes, write_result.write_error
+            )
         return _continue_or_finalize(
             runtime=runtime,
             progress=progress,
@@ -188,7 +195,9 @@ def _handle_write_result(
         )
 
     if write_result.after_text == current_text:
-        logger.info("[FIXER] Edit pass %s made no changes; remaining work still logged", turn)
+        logger.info(
+            "[FIXER] Edit pass %s made no changes; remaining work still logged", turn
+        )
         return _continue_or_finalize(
             runtime=runtime,
             progress=progress,

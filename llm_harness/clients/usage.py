@@ -46,7 +46,9 @@ class UsageMetadata:
 
     def format(self) -> str:
         """Format the usage summary for display."""
-        summary = f"Input: {self.total_input_tokens:,}, Output: {self.total_output_tokens:,}"
+        summary = (
+            f"Input: {self.total_input_tokens:,}, Output: {self.total_output_tokens:,}"
+        )
         if self.total_cost > 0:
             summary = f"{summary}, Cost: ${self.total_cost:.4f}"
         return summary

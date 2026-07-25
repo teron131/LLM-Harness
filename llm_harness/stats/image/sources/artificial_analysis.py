@@ -32,7 +32,9 @@ GROUPS = {
         "Graphic Design & Digital Rendering",
     ],
 }
-GROUP_BY_CATEGORY_LABEL = {label: group_name for group_name, labels in GROUPS.items() for label in labels}
+GROUP_BY_CATEGORY_LABEL = {
+    label: group_name for group_name, labels in GROUPS.items() for label in labels
+}
 
 
 class ArtificialAnalysisImageOptions(TypedDict, total=False):
@@ -56,7 +58,9 @@ def _parse_release_date_to_utc(release_date: str | None) -> float | None:
         return float(__import__("datetime").datetime(year, month, 1).timestamp())
     if len(release_date) == 10:
         try:
-            return float(__import__("datetime").datetime.fromisoformat(release_date).timestamp())
+            return float(
+                __import__("datetime").datetime.fromisoformat(release_date).timestamp()
+            )
         except ValueError:
             return None
     return None
@@ -91,7 +95,9 @@ def _init_accumulator() -> dict[str, dict[str, float]]:
     }
 
 
-def _frequency_weighted_elo(weighted_elo_sum: float, appearance_sum: float) -> float | None:
+def _frequency_weighted_elo(
+    weighted_elo_sum: float, appearance_sum: float
+) -> float | None:
     """Helper for frequency weighted elo."""
     if appearance_sum <= 0:
         return None
@@ -112,7 +118,9 @@ def _to_aggregated_fields(accumulator: dict[str, dict[str, float]]) -> dict[str,
         accumulator["Contextual"]["weighted_elo_sum"],
         accumulator["Contextual"]["appearance_sum"],
     )
-    total_known_appearances = sum(bucket["appearance_sum"] for bucket in accumulator.values())
+    total_known_appearances = sum(
+        bucket["appearance_sum"] for bucket in accumulator.values()
+    )
     grouped_overall = _frequency_weighted_elo(
         sum(bucket["weighted_elo_sum"] for bucket in accumulator.values()),
         total_known_appearances,
@@ -135,11 +143,18 @@ def _to_aggregated_fields(accumulator: dict[str, dict[str, float]]) -> dict[str,
     }
 
 
-def _enrich_payload(raw_payload: dict[str, Any], min_model_age_days: int) -> dict[str, Any]:
+def _enrich_payload(
+    raw_payload: dict[str, Any], min_model_age_days: int
+) -> dict[str, Any]:
     """Enrich the selected Artificial Analysis image benchmark source payload."""
     raw_models = raw_payload.get("data")
     all_models = raw_models if isinstance(raw_models, list) else []
-    models = [model for model in all_models if isinstance(model, dict) and not _is_older_than_days(model.get("release_date"), min_model_age_days)]
+    models = [
+        model
+        for model in all_models
+        if isinstance(model, dict)
+        and not _is_older_than_days(model.get("release_date"), min_model_age_days)
+    ]
     global_accumulator = _init_accumulator()
     enriched_models: list[dict[str, Any]] = []
     for model in models:
@@ -176,23 +191,45 @@ def _enrich_payload(raw_payload: dict[str, Any], min_model_age_days: int) -> dic
             }
         )
     enriched_models.sort(
-        key=lambda model: model["weighted_scores"]["grouped_overall"] if model["weighted_scores"]["grouped_overall"] is not None else float("-inf"),
+        key=lambda model: (
+            model["weighted_scores"]["grouped_overall"]
+            if model["weighted_scores"]["grouped_overall"] is not None
+            else float("-inf")
+        ),
         reverse=True,
     )
-    photorealistic_values = [model["weighted_scores"]["photorealistic"] for model in enriched_models]
-    illustrative_values = [model["weighted_scores"]["illustrative"] for model in enriched_models]
-    contextual_values = [model["weighted_scores"]["contextual"] for model in enriched_models]
-    grouped_overall_values = [model["weighted_scores"]["grouped_overall"] for model in enriched_models]
+    photorealistic_values = [
+        model["weighted_scores"]["photorealistic"] for model in enriched_models
+    ]
+    illustrative_values = [
+        model["weighted_scores"]["illustrative"] for model in enriched_models
+    ]
+    contextual_values = [
+        model["weighted_scores"]["contextual"] for model in enriched_models
+    ]
+    grouped_overall_values = [
+        model["weighted_scores"]["grouped_overall"] for model in enriched_models
+    ]
     data = []
     for model in enriched_models:
         data.append(
             {
                 **model,
                 "percentiles": {
-                    "photorealistic_percentile": percentile_rank(photorealistic_values, model["weighted_scores"]["photorealistic"]),
-                    "illustrative_percentile": percentile_rank(illustrative_values, model["weighted_scores"]["illustrative"]),
-                    "contextual_percentile": percentile_rank(contextual_values, model["weighted_scores"]["contextual"]),
-                    "grouped_overall_percentile": percentile_rank(grouped_overall_values, model["weighted_scores"]["grouped_overall"]),
+                    "photorealistic_percentile": percentile_rank(
+                        photorealistic_values,
+                        model["weighted_scores"]["photorealistic"],
+                    ),
+                    "illustrative_percentile": percentile_rank(
+                        illustrative_values, model["weighted_scores"]["illustrative"]
+                    ),
+                    "contextual_percentile": percentile_rank(
+                        contextual_values, model["weighted_scores"]["contextual"]
+                    ),
+                    "grouped_overall_percentile": percentile_rank(
+                        grouped_overall_values,
+                        model["weighted_scores"]["grouped_overall"],
+                    ),
                 },
             }
         )
@@ -224,7 +261,9 @@ def get_artificial_analysis_image_stats(
 ) -> dict[str, Any]:
     """Fetch and enrich Artificial Analysis text-to-image data."""
     options = options or {}
-    api_key = options.get("api_key") or __import__("os").getenv("ARTIFICIALANALYSIS_API_KEY")
+    api_key = options.get("api_key") or __import__("os").getenv(
+        "ARTIFICIALANALYSIS_API_KEY"
+    )
     min_model_age_days = options.get("min_model_age_days", DEFAULT_MIN_MODEL_AGE_DAYS)
     if not api_key:
         return _failure_payload(min_model_age_days)

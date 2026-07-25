@@ -30,7 +30,11 @@ ARENA_AI_GROUPED_CATEGORY_SLUGS = {
     "illustrative": ["cartoon", "art"],
     "contextual": ["commercial-design", "3d-modeling", "text-rendering"],
 }
-ARENA_AI_GROUP_BY_SLUG = {slug: group_name for group_name, slugs in ARENA_AI_GROUPED_CATEGORY_SLUGS.items() for slug in slugs}
+ARENA_AI_GROUP_BY_SLUG = {
+    slug: group_name
+    for group_name, slugs in ARENA_AI_GROUPED_CATEGORY_SLUGS.items()
+    for slug in slugs
+}
 
 
 class ArenaAiImageOptions(TypedDict, total=False):
@@ -59,18 +63,28 @@ def _extract_leaderboard_rows(html: str) -> list[dict[str, Any]]:
     for index, match in enumerate(title_matches):
         title = match.group(1) if match.group(1) else ""
         start = match.start()
-        end = title_matches[index + 1].start() if index + 1 < len(title_matches) else min(start + 4000, len(html))
+        end = (
+            title_matches[index + 1].start()
+            if index + 1 < len(title_matches)
+            else min(start + 4000, len(html))
+        )
         row_block = html[start:end]
         score_match = re.search(r">(\d{3,4})</span><span[^>]*>±(\d+)</span>", row_block)
-        votes_match = re.search(r"±\d+</span>(?:.|\n){0,1200}?>([\d,]{2,})</span>", row_block)
+        votes_match = re.search(
+            r"±\d+</span>(?:.|\n){0,1200}?>([\d,]{2,})</span>", row_block
+        )
         provider_match = re.search(r">([^<]+ · [^<]+)</span>", row_block)
         rows.append(
             {
                 "model": title,
                 "provider": provider_match.group(1) if provider_match else None,
-                "score": as_finite_number(score_match.group(1) if score_match else None),
+                "score": as_finite_number(
+                    score_match.group(1) if score_match else None
+                ),
                 "ci95": f"±{score_match.group(2)}" if score_match else None,
-                "votes": as_finite_number(votes_match.group(1).replace(",", "")) if votes_match else None,
+                "votes": as_finite_number(votes_match.group(1).replace(",", ""))
+                if votes_match
+                else None,
             }
         )
     return rows
@@ -89,7 +103,9 @@ def _fetch_category(base_url: str, category_slug: str) -> dict[str, Any]:
             timeout_seconds=REQUEST_TIMEOUT_SECONDS,
         )
         html = response.text
-        rows_with_score = [row for row in _extract_leaderboard_rows(html) if row["score"] is not None]
+        rows_with_score = [
+            row for row in _extract_leaderboard_rows(html) if row["score"] is not None
+        ]
         return {
             "fetched_at_epoch_seconds": now_epoch_seconds(),
             "category_slug": category_slug,
@@ -118,7 +134,9 @@ def _round4(value: float) -> float:
     return round(value, 4)
 
 
-def _weighted_score_or_average(weighted_sum: float, votes_sum: float, score_sum: float, count: int | float) -> float | None:
+def _weighted_score_or_average(
+    weighted_sum: float, votes_sum: float, score_sum: float, count: int | float
+) -> float | None:
     """Helper for weighted score or average."""
     if votes_sum > 0:
         return _round4(weighted_sum / votes_sum)
@@ -130,9 +148,24 @@ def _weighted_score_or_average(weighted_sum: float, votes_sum: float, score_sum:
 def _build_grouped_scores(category_rows: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Build the grouped scores."""
     grouped = {
-        "photorealistic": {"score_weighted_sum": 0.0, "votes_sum": 0.0, "score_sum": 0.0, "count": 0},
-        "illustrative": {"score_weighted_sum": 0.0, "votes_sum": 0.0, "score_sum": 0.0, "count": 0},
-        "contextual": {"score_weighted_sum": 0.0, "votes_sum": 0.0, "score_sum": 0.0, "count": 0},
+        "photorealistic": {
+            "score_weighted_sum": 0.0,
+            "votes_sum": 0.0,
+            "score_sum": 0.0,
+            "count": 0,
+        },
+        "illustrative": {
+            "score_weighted_sum": 0.0,
+            "votes_sum": 0.0,
+            "score_sum": 0.0,
+            "count": 0,
+        },
+        "contextual": {
+            "score_weighted_sum": 0.0,
+            "votes_sum": 0.0,
+            "score_sum": 0.0,
+            "count": 0,
+        },
     }
     for category_slug, row in category_rows.items():
         group_name = ARENA_AI_GROUP_BY_SLUG.get(category_slug)
@@ -182,7 +215,9 @@ def _build_grouped_scores(category_rows: dict[str, dict[str, Any]]) -> dict[str,
     }
 
 
-def _build_aggregated_rows(category_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_aggregated_rows(
+    category_payloads: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Build the aggregated rows."""
     by_model: dict[str, dict[str, Any]] = {}
     for payload in category_payloads:
@@ -216,9 +251,21 @@ def _build_aggregated_rows(category_payloads: list[dict[str, Any]]) -> list[dict
             aggregate["score_weighted_sum"] += (row.get("score") or 0) * votes
     aggregated_rows: list[dict[str, Any]] = []
     for aggregate in by_model.values():
-        average_score = _round4(aggregate["score_sum"] / aggregate["category_count"]) if aggregate["category_count"] > 0 else None
-        vote_weighted_score = _round4(aggregate["score_weighted_sum"] / aggregate["votes_sum"]) if aggregate["votes_sum"] > 0 else average_score
-        average_rank = _round4(aggregate["rank_sum"] / aggregate["category_count"]) if aggregate["category_count"] > 0 else None
+        average_score = (
+            _round4(aggregate["score_sum"] / aggregate["category_count"])
+            if aggregate["category_count"] > 0
+            else None
+        )
+        vote_weighted_score = (
+            _round4(aggregate["score_weighted_sum"] / aggregate["votes_sum"])
+            if aggregate["votes_sum"] > 0
+            else average_score
+        )
+        average_rank = (
+            _round4(aggregate["rank_sum"] / aggregate["category_count"])
+            if aggregate["category_count"] > 0
+            else None
+        )
         grouped = _build_grouped_scores(aggregate["category_rows"])
         aggregated_rows.append(
             {
@@ -243,25 +290,45 @@ def _build_aggregated_rows(category_payloads: list[dict[str, Any]]) -> list[dict
         )
     aggregated_rows.sort(
         key=lambda row: (
-            row["vote_weighted_score"] if row["vote_weighted_score"] is not None else float("-inf"),
+            row["vote_weighted_score"]
+            if row["vote_weighted_score"] is not None
+            else float("-inf"),
             row["category_count"],
         ),
         reverse=True,
     )
     vote_weighted_values = [row["vote_weighted_score"] for row in aggregated_rows]
-    photorealistic_values = [row["weighted_scores"]["photorealistic"] for row in aggregated_rows]
-    illustrative_values = [row["weighted_scores"]["illustrative"] for row in aggregated_rows]
-    contextual_values = [row["weighted_scores"]["contextual"] for row in aggregated_rows]
-    grouped_overall_values = [row["weighted_scores"]["grouped_overall"] for row in aggregated_rows]
+    photorealistic_values = [
+        row["weighted_scores"]["photorealistic"] for row in aggregated_rows
+    ]
+    illustrative_values = [
+        row["weighted_scores"]["illustrative"] for row in aggregated_rows
+    ]
+    contextual_values = [
+        row["weighted_scores"]["contextual"] for row in aggregated_rows
+    ]
+    grouped_overall_values = [
+        row["weighted_scores"]["grouped_overall"] for row in aggregated_rows
+    ]
     return [
         {
             **row,
             "percentiles": {
-                "vote_weighted_percentile": percentile_rank(vote_weighted_values, row["vote_weighted_score"]),
-                "photorealistic_percentile": percentile_rank(photorealistic_values, row["weighted_scores"]["photorealistic"]),
-                "illustrative_percentile": percentile_rank(illustrative_values, row["weighted_scores"]["illustrative"]),
-                "contextual_percentile": percentile_rank(contextual_values, row["weighted_scores"]["contextual"]),
-                "grouped_overall_percentile": percentile_rank(grouped_overall_values, row["weighted_scores"]["grouped_overall"]),
+                "vote_weighted_percentile": percentile_rank(
+                    vote_weighted_values, row["vote_weighted_score"]
+                ),
+                "photorealistic_percentile": percentile_rank(
+                    photorealistic_values, row["weighted_scores"]["photorealistic"]
+                ),
+                "illustrative_percentile": percentile_rank(
+                    illustrative_values, row["weighted_scores"]["illustrative"]
+                ),
+                "contextual_percentile": percentile_rank(
+                    contextual_values, row["weighted_scores"]["contextual"]
+                ),
+                "grouped_overall_percentile": percentile_rank(
+                    grouped_overall_values, row["weighted_scores"]["grouped_overall"]
+                ),
             },
         }
         for row in aggregated_rows
@@ -277,7 +344,11 @@ def get_arena_ai_image_stats(
     min_valid_rows = options.get("min_valid_rows", MIN_VALID_ROWS)
     min_valid_categories = options.get("min_valid_categories", MIN_VALID_CATEGORIES)
     categories = [_fetch_category(ARENA_AI_BASE_URL, slug) for slug in category_slugs]
-    valid_categories = [category for category in categories if category["rows_with_score"] >= min_valid_rows]
+    valid_categories = [
+        category
+        for category in categories
+        if category["rows_with_score"] >= min_valid_rows
+    ]
     rows = _build_aggregated_rows(valid_categories)
     return {
         "fetched_at_epoch_seconds": now_epoch_seconds(),
@@ -285,7 +356,9 @@ def get_arena_ai_image_stats(
         "category_slugs": list(category_slugs),
         "categories": categories,
         "grouped_category_slugs": ARENA_AI_GROUPED_CATEGORY_SLUGS,
-        "valid_categories": [category["category_slug"] for category in valid_categories],
+        "valid_categories": [
+            category["category_slug"] for category in valid_categories
+        ],
         "total_valid_categories": len(valid_categories),
         "total_models_aggregated": len(rows),
         "scrape_feasible_now": len(valid_categories) >= min_valid_categories,

@@ -6,7 +6,10 @@ from typing import Any, Literal
 from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
-from langchain_openai import ChatOpenAI as NativeChatOpenAI, OpenAIEmbeddings as NativeOpenAIEmbeddings
+from langchain_openai import (
+    ChatOpenAI as NativeChatOpenAI,
+    OpenAIEmbeddings as NativeOpenAIEmbeddings,
+)
 from pydantic import SecretStr
 
 load_dotenv()

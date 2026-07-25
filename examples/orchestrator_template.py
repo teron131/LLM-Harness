@@ -199,7 +199,9 @@ def build_orchestrator() -> Orchestrator:
                 tool_calls=[
                     {
                         "name": "react_worker_stage",
-                        "args": {"message": "ask the private worker to inspect package metadata"},
+                        "args": {
+                            "message": "ask the private worker to inspect package metadata"
+                        },
                         "id": "parent_call_3",
                     }
                 ],
@@ -214,7 +216,9 @@ def build_orchestrator() -> Orchestrator:
                     }
                 ],
             ),
-            AIMessage(content="Template run complete: repo tools plus plain, ReAct-worker, and LangGraph stages all returned results."),
+            AIMessage(
+                content="Template run complete: repo tools plus plain, ReAct-worker, and LangGraph stages all returned results."
+            ),
         ]
     )
     return Orchestrator(

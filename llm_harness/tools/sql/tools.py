@@ -8,7 +8,15 @@ from typing import Any
 from langchain.tools import tool
 
 from ..tabular.storage import resolve_root_dir
-from .query import MAX_QUERY_ROWS, MAX_SUGGESTED_TARGETS, describe_target, list_targets, run_query, save_view, suggest_targets
+from .query import (
+    MAX_QUERY_ROWS,
+    MAX_SUGGESTED_TARGETS,
+    describe_target,
+    list_targets,
+    run_query,
+    save_view,
+    suggest_targets,
+)
 
 
 def make_sql_tools(*, root_dir: str | Path | None = None):

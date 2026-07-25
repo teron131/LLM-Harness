@@ -14,10 +14,16 @@ from urllib.parse import urlencode
 import httpx
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/frontend/models"
-OPENROUTER_THROUGHPUT_URL = "https://openrouter.ai/api/frontend/stats/throughput-comparison"
+OPENROUTER_THROUGHPUT_URL = (
+    "https://openrouter.ai/api/frontend/stats/throughput-comparison"
+)
 OPENROUTER_LATENCY_URL = "https://openrouter.ai/api/frontend/stats/latency-comparison"
-OPENROUTER_E2E_LATENCY_URL = "https://openrouter.ai/api/frontend/stats/latency-e2e-comparison"
-OPENROUTER_EFFECTIVE_PRICING_URL = "https://openrouter.ai/api/frontend/stats/effective-pricing"
+OPENROUTER_E2E_LATENCY_URL = (
+    "https://openrouter.ai/api/frontend/stats/latency-e2e-comparison"
+)
+OPENROUTER_EFFECTIVE_PRICING_URL = (
+    "https://openrouter.ai/api/frontend/stats/effective-pricing"
+)
 
 DEFAULT_TIMEOUT_MS = 30_000
 DEFAULT_CONCURRENCY = 8
@@ -78,7 +84,11 @@ def _sanitize_model_id(model_id: str) -> str:
 
 def _as_finite_number(value: object) -> float | None:
     """Convert the input into a finite number for OpenRouter scraper model stats."""
-    if value is None or isinstance(value, bool) or not isinstance(value, str | int | float):
+    if (
+        value is None
+        or isinstance(value, bool)
+        or not isinstance(value, str | int | float)
+    ):
         return None
     try:
         numeric_value = float(value)
@@ -91,7 +101,11 @@ def _as_finite_number(value: object) -> float | None:
 
 def _finite_numbers(values: list[object]) -> list[float]:
     """Helper for finite numbers."""
-    return [numeric_value for value in values if (numeric_value := _as_finite_number(value)) is not None]
+    return [
+        numeric_value
+        for value in values
+        if (numeric_value := _as_finite_number(value)) is not None
+    ]
 
 
 def _average(values: list[float]) -> float | None:
@@ -124,20 +138,34 @@ def _to_daily_averaged_values(
         daily_average = _average(values)
         if daily_average is None:
             continue
-        averaged_values.append(daily_average / 1000 if scale_to_seconds else daily_average)
+        averaged_values.append(
+            daily_average / 1000 if scale_to_seconds else daily_average
+        )
     return averaged_values
 
 
-def _summarize_performance(stats: dict[str, object] | None = None) -> OpenRouterPerformanceSummary:
+def _summarize_performance(
+    stats: dict[str, object] | None = None,
+) -> OpenRouterPerformanceSummary:
     """Summarize the performance."""
     safe_stats = stats or {}
-    throughput_values = _to_daily_averaged_values(safe_stats.get("throughput"), scale_to_seconds=False)
-    latency_values = _to_daily_averaged_values(safe_stats.get("latency"), scale_to_seconds=True)
-    e2e_latency_values = _to_daily_averaged_values(safe_stats.get("latency_e2e"), scale_to_seconds=True)
+    throughput_values = _to_daily_averaged_values(
+        safe_stats.get("throughput"), scale_to_seconds=False
+    )
+    latency_values = _to_daily_averaged_values(
+        safe_stats.get("latency"), scale_to_seconds=True
+    )
+    e2e_latency_values = _to_daily_averaged_values(
+        safe_stats.get("latency_e2e"), scale_to_seconds=True
+    )
     return {
-        "throughput_tokens_per_second_median": median(throughput_values) if throughput_values else None,
+        "throughput_tokens_per_second_median": median(throughput_values)
+        if throughput_values
+        else None,
         "latency_seconds_median": median(latency_values) if latency_values else None,
-        "e2e_latency_seconds_median": median(e2e_latency_values) if e2e_latency_values else None,
+        "e2e_latency_seconds_median": median(e2e_latency_values)
+        if e2e_latency_values
+        else None,
     }
 
 
@@ -146,8 +174,12 @@ def _summarize_pricing(response: object) -> OpenRouterPricingSummary:
     data = response.get("data") if isinstance(response, dict) else None
     safe_data = data if isinstance(data, dict) else {}
     return {
-        "weighted_input_price_per_1m": _as_finite_number(safe_data.get("weightedInputPrice")),
-        "weighted_output_price_per_1m": _as_finite_number(safe_data.get("weightedOutputPrice")),
+        "weighted_input_price_per_1m": _as_finite_number(
+            safe_data.get("weightedInputPrice")
+        ),
+        "weighted_output_price_per_1m": _as_finite_number(
+            safe_data.get("weightedOutputPrice")
+        ),
     }
 
 
@@ -225,7 +257,9 @@ def _build_permaslug_lookup(models: object) -> dict[str, str]:
 def _has_meaningful_performance(performance: OpenRouterPerformanceSummary) -> bool:
     """Return whether the current value is valid for OpenRouter scraper model stats."""
     return (
-        performance["throughput_tokens_per_second_median"] is not None or performance["latency_seconds_median"] is not None or performance["e2e_latency_seconds_median"] is not None
+        performance["throughput_tokens_per_second_median"] is not None
+        or performance["latency_seconds_median"] is not None
+        or performance["e2e_latency_seconds_median"] is not None
     )
 
 
@@ -233,7 +267,9 @@ def _has_meaningful_pricing(pricing: OpenRouterPricingSummary) -> bool:
     """Return whether the current value is valid for OpenRouter scraper model stats."""
     weighted_input = pricing["weighted_input_price_per_1m"]
     weighted_output = pricing["weighted_output_price_per_1m"]
-    return (weighted_input is not None and weighted_input > 0) or (weighted_output is not None and weighted_output > 0)
+    return (weighted_input is not None and weighted_input > 0) or (
+        weighted_output is not None and weighted_output > 0
+    )
 
 
 def _split_slug_tokens(value: str) -> list[str]:
@@ -241,7 +277,9 @@ def _split_slug_tokens(value: str) -> list[str]:
     return [token for token in _SLUG_SPLIT_PATTERN.split(value.lower()) if token]
 
 
-def _token_overlap_score(target_tokens: list[str], candidate_tokens: list[str]) -> float:
+def _token_overlap_score(
+    target_tokens: list[str], candidate_tokens: list[str]
+) -> float:
     """Helper for token overlap score."""
     if not target_tokens:
         return 0.0
@@ -251,7 +289,9 @@ def _token_overlap_score(target_tokens: list[str], candidate_tokens: list[str]) 
     return overlap_count / len(target_set)
 
 
-def _build_slug_fallback_candidates(model_id: str, available_slugs: list[str]) -> list[str]:
+def _build_slug_fallback_candidates(
+    model_id: str, available_slugs: list[str]
+) -> list[str]:
     """Build fallback candidates for OpenRouter scraper model stats."""
     normalized = _sanitize_model_id(model_id)
     if "/" not in normalized:
@@ -270,11 +310,15 @@ def _build_slug_fallback_candidates(model_id: str, available_slugs: list[str]) -
         candidate_model = slug[len(provider) + 1 :]
         candidate_tokens = _split_slug_tokens(candidate_model)
         overlap_score = _token_overlap_score(target_tokens, candidate_tokens)
-        prefix_score = 0.2 if core_prefix and candidate_model.startswith(core_prefix) else 0.0
+        prefix_score = (
+            0.2 if core_prefix and candidate_model.startswith(core_prefix) else 0.0
+        )
         score = overlap_score + prefix_score
         if score < 0.6:
             continue
-        scored_candidates.append((slug, score, abs(len(candidate_model) - len(model_name))))
+        scored_candidates.append(
+            (slug, score, abs(len(candidate_model) - len(model_name)))
+        )
 
     scored_candidates.sort(key=lambda item: (-item[1], item[2], item[0]))
     return [normalized, *[slug for slug, _, _ in scored_candidates[:8]]]
@@ -350,7 +394,9 @@ def _fetch_best_available_model_stats(
     retry_base_delay_ms: int,
 ) -> OpenRouterScrapedModel:
     """Return best available model stats."""
-    permaslug_candidates = _resolve_permaslug_candidates(model_id, available_slugs, permaslug_by_slug)
+    permaslug_candidates = _resolve_permaslug_candidates(
+        model_id, available_slugs, permaslug_by_slug
+    )
     if not permaslug_candidates:
         return _empty_scraped_model(model_id)
 
@@ -373,7 +419,9 @@ def _fetch_best_available_model_stats(
             }
             if first_resolved is None:
                 first_resolved = resolved_model
-            if _has_meaningful_performance(performance) or _has_meaningful_pricing(pricing):
+            if _has_meaningful_performance(performance) or _has_meaningful_pricing(
+                pricing
+            ):
                 return resolved_model
         except Exception:
             continue
@@ -387,11 +435,19 @@ def get_openrouter_scraped_stats(
     """Return openrouter scraped stats."""
     options = options or {}
     raw_model_ids = options.get("model_ids") or []
-    unique_model_ids = list(dict.fromkeys(model_id.strip() for model_id in raw_model_ids if isinstance(model_id, str) and model_id.strip()))
+    unique_model_ids = list(
+        dict.fromkeys(
+            model_id.strip()
+            for model_id in raw_model_ids
+            if isinstance(model_id, str) and model_id.strip()
+        )
+    )
     timeout_ms = int(options.get("timeout_ms") or DEFAULT_TIMEOUT_MS)
     concurrency = max(1, int(options.get("concurrency") or DEFAULT_CONCURRENCY))
     max_retries = max(1, int(options.get("max_retries") or DEFAULT_MAX_RETRIES))
-    retry_base_delay_ms = int(options.get("retry_base_delay_ms") or DEFAULT_RETRY_BASE_DELAY_MS)
+    retry_base_delay_ms = int(
+        options.get("retry_base_delay_ms") or DEFAULT_RETRY_BASE_DELAY_MS
+    )
 
     empty_payload = {
         "fetched_at_epoch_seconds": int(time.time()),
@@ -410,7 +466,9 @@ def get_openrouter_scraped_stats(
                 max_retries=max_retries,
                 retry_base_delay_ms=retry_base_delay_ms,
             )
-        data = model_directory.get("data") if isinstance(model_directory, dict) else None
+        data = (
+            model_directory.get("data") if isinstance(model_directory, dict) else None
+        )
         permaslug_by_slug = _build_permaslug_lookup(data)
         available_slugs = list(permaslug_by_slug.keys())
         if not available_slugs:
@@ -434,7 +492,9 @@ def get_openrouter_scraped_stats(
         return {
             "fetched_at_epoch_seconds": int(time.time()),
             "total_requested_models": len(unique_model_ids),
-            "total_resolved_models": sum(1 for model in models if model["permaslug"] is not None),
+            "total_resolved_models": sum(
+                1 for model in models if model["permaslug"] is not None
+            ),
             "models": models,
         }
     except Exception:
@@ -451,7 +511,12 @@ def get_openrouter_model_stats(
 
     scraper_options: OpenRouterScraperOptions = {"model_ids": [model_id]}
     if options:
-        for option_key in ("timeout_ms", "concurrency", "max_retries", "retry_base_delay_ms"):
+        for option_key in (
+            "timeout_ms",
+            "concurrency",
+            "max_retries",
+            "retry_base_delay_ms",
+        ):
             option_value = options.get(option_key)
             if option_value is not None:
                 scraper_options[option_key] = option_value

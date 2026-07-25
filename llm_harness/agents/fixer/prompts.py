@@ -1,6 +1,8 @@
 """Prompt builders for the generic file fixer workflow."""
 
-DEFAULT_FIXER_TASK_PROMPT = "Fix grammar, spelling, and obvious typos while preserving meaning and structure."
+DEFAULT_FIXER_TASK_PROMPT = (
+    "Fix grammar, spelling, and obvious typos while preserving meaning and structure."
+)
 
 DEFAULT_FIXER_SYSTEM_PROMPT = """Edit the file directly to satisfy the task.
 
@@ -19,8 +21,28 @@ Hard constraints:
 """
 
 CLEAN_TASK_LOG = "DONE:\n- clean\nREMAINING:\n- none"
-ALLOWED_FIXER_ACTIONS = ("ADD", "ALIGN", "DEDUPE", "FILL", "FIX", "MERGE", "NORMALIZE", "REMOVE", "REORDER", "SPLIT", "TRIM")
-HIGH_PRIORITY_FIXER_ACTIONS = ("FIX", "ADD", "REMOVE", "MERGE", "FILL", "SPLIT", "DEDUPE")
+ALLOWED_FIXER_ACTIONS = (
+    "ADD",
+    "ALIGN",
+    "DEDUPE",
+    "FILL",
+    "FIX",
+    "MERGE",
+    "NORMALIZE",
+    "REMOVE",
+    "REORDER",
+    "SPLIT",
+    "TRIM",
+)
+HIGH_PRIORITY_FIXER_ACTIONS = (
+    "FIX",
+    "ADD",
+    "REMOVE",
+    "MERGE",
+    "FILL",
+    "SPLIT",
+    "DEDUPE",
+)
 LOW_PRIORITY_FIXER_ACTIONS = ("NORMALIZE", "REORDER", "ALIGN", "TRIM")
 FIXER_ACTION_MEANINGS = {
     "FIX": "correct incorrect existing text or values",
@@ -97,7 +119,10 @@ def build_fixer_progress_prompt(
     current_text: str,
 ) -> str:
     """Build the review prompt that summarizes remaining work."""
-    action_meanings = "\n".join(f"  {action} = {FIXER_ACTION_MEANINGS[action]}" for action in ALLOWED_FIXER_ACTIONS)
+    action_meanings = "\n".join(
+        f"  {action} = {FIXER_ACTION_MEANINGS[action]}"
+        for action in ALLOWED_FIXER_ACTIONS
+    )
     return f"""Update a tiny progress checklist for /{target_file.lstrip("/")}.
 
 Use the current file text only.

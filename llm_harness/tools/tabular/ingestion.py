@@ -22,7 +22,9 @@ def tabular_dimensions(rows: list[list[str]]) -> tuple[int, int]:
     return len(rows), max((len(row) for row in rows), default=0)
 
 
-def tabular_summary(rows: list[list[str]], format_info: dict[str, Any]) -> dict[str, Any]:
+def tabular_summary(
+    rows: list[list[str]], format_info: dict[str, Any]
+) -> dict[str, Any]:
     """Build the common file summary shared by all tabular tools."""
     row_count, column_count = tabular_dimensions(rows)
     return tabular_summary_from_counts(
@@ -206,7 +208,9 @@ def stream_csv_profile(path: Path, *, max_sample_rows: int) -> dict[str, Any]:
         "non_empty_row_count": non_empty_row_count,
         "blank_row_count": row_count - non_empty_row_count,
         "max_non_empty_cells_in_row": max_non_empty_cells,
-        "median_non_empty_cells_per_non_blank_row": _median_from_frequencies(non_empty_frequencies, non_empty_row_count),
+        "median_non_empty_cells_per_non_blank_row": _median_from_frequencies(
+            non_empty_frequencies, non_empty_row_count
+        ),
         "sample_rows": sample_rows,
         "header_candidates": [],
         "regions": [],
@@ -225,7 +229,9 @@ def _load_csv_rows(path: Path) -> tuple[list[list[str]], dict[str, str]]:
     return rows, {key: value for key, value in format_info.items() if key != "format"}
 
 
-def _load_xlsx_rows(path: Path, *, sheet: str | None = None) -> tuple[list[list[str]], dict[str, Any]]:
+def _load_xlsx_rows(
+    path: Path, *, sheet: str | None = None
+) -> tuple[list[list[str]], dict[str, Any]]:
     """Load worksheet rows and propagate merged-cell values."""
     workbook = load_workbook(path, read_only=False, data_only=True)
     try:
@@ -234,7 +240,10 @@ def _load_xlsx_rows(path: Path, *, sheet: str | None = None) -> tuple[list[list[
         if sheet_name not in workbook.sheetnames:
             raise ValueError(f"Unknown worksheet '{sheet_name}' in {path.name}")
         worksheet = workbook[sheet_name]
-        rows = [[_normalize_cell(cell) for cell in row] for row in worksheet.iter_rows(values_only=True)]
+        rows = [
+            [_normalize_cell(cell) for cell in row]
+            for row in worksheet.iter_rows(values_only=True)
+        ]
         for merged_range in worksheet.merged_cells.ranges:
             min_col, min_row, max_col, max_row = merged_range.bounds
             value = rows[min_row - 1][min_col - 1]
@@ -246,7 +255,9 @@ def _load_xlsx_rows(path: Path, *, sheet: str | None = None) -> tuple[list[list[
         workbook.close()
 
 
-def load_rows(path: Path, *, sheet: str | None = None) -> tuple[list[list[str]], dict[str, Any]]:
+def load_rows(
+    path: Path, *, sheet: str | None = None
+) -> tuple[list[list[str]], dict[str, Any]]:
     """Load tabular rows from a supported file type."""
     suffix = path.suffix.lower()
     if suffix == ".csv":

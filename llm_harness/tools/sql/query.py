@@ -14,7 +14,13 @@ import re
 import sqlite3
 from typing import Any, cast
 
-from ..tabular.storage import SQLITE_CONTENTS_TABLE, SQLITE_SOURCES_TABLE, quote_identifier, sqlite_database_path, sqlite_write_lock
+from ..tabular.storage import (
+    SQLITE_CONTENTS_TABLE,
+    SQLITE_SOURCES_TABLE,
+    quote_identifier,
+    sqlite_database_path,
+    sqlite_write_lock,
+)
 
 MAX_QUERY_ROWS = 200
 MAX_DESCRIBE_SAMPLE_ROWS = 5
@@ -29,7 +35,21 @@ _READ_ONLY_SQL_PREFIXES = ("SELECT", "WITH", "EXPLAIN")
 _VIEW_SQL_PREFIXES = ("SELECT", "WITH")
 _LEADING_SQL_COMMENT = re.compile(r"\A(?:\s+|--[^\n]*(?:\n|\Z)|/\*.*?\*/)*", re.DOTALL)
 _TEXT_TYPE_MARKERS = ("CHAR", "CLOB", "TEXT", "VARCHAR")
-_TEXT_HINT_NAME_MARKERS = ("category", "code", "description", "group", "id", "identifier", "key", "kind", "label", "name", "segment", "status", "type")
+_TEXT_HINT_NAME_MARKERS = (
+    "category",
+    "code",
+    "description",
+    "group",
+    "id",
+    "identifier",
+    "key",
+    "kind",
+    "label",
+    "name",
+    "segment",
+    "status",
+    "type",
+)
 _TARGET_MASTER_SQL = """
 SELECT name, type, sql
 FROM sqlite_master
@@ -45,7 +65,26 @@ WHERE type IN ('table', 'view') AND name = ?
 _AMBIGUOUS_COLUMN_ERROR_PREFIX = "ambiguous column name:"
 _MISSING_COLUMN_ERROR_PREFIX = "no such column:"
 _MISSING_TABLE_ERROR_PREFIX = "no such table:"
-_SUGGESTION_STOP_WORDS = {"a", "an", "and", "by", "for", "from", "how", "in", "is", "me", "of", "on", "show", "the", "to", "what", "which", "with"}
+_SUGGESTION_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "by",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "me",
+    "of",
+    "on",
+    "show",
+    "the",
+    "to",
+    "what",
+    "which",
+    "with",
+}
 _VIEW_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -71,7 +110,9 @@ def _zip_exact(left: list[str], right: tuple[Any, ...]) -> list[tuple[str, Any]]
     pairs: list[tuple[str, Any]] = []
     for left_item, right_item in zip_longest(left, right, fillvalue=_MISSING):
         if left_item is _MISSING or right_item is _MISSING:
-            raise ValueError("SQL result row width did not match the reported column metadata.")
+            raise ValueError(
+                "SQL result row width did not match the reported column metadata."
+            )
         pairs.append((cast(str, left_item), right_item))
     return pairs
 
@@ -142,10 +183,18 @@ def _query_result_payload(
             ),
         }
 
-    column_names, original_columns = _normalized_column_names([cast(Any, column[0]) for column in description])
+    column_names, original_columns = _normalized_column_names(
+        [cast(Any, column[0]) for column in description]
+    )
     raw_rows = cursor.fetchmany(max_rows + 1)
     truncated = len(raw_rows) > max_rows
-    rows = [{column_name: _jsonable_value(value) for column_name, value in _zip_exact(column_names, row)} for row in raw_rows[:max_rows]]
+    rows = [
+        {
+            column_name: _jsonable_value(value)
+            for column_name, value in _zip_exact(column_names, row)
+        }
+        for row in raw_rows[:max_rows]
+    ]
     payload = {
         "database_path": str(database_path),
         "status": "ok",
@@ -176,7 +225,10 @@ def _target_summary(
     reasons: list[str] | None = None,
 ) -> str:
     """Build one compact summary for a target suggestion or listing."""
-    summary_parts = [f"{name} ({kind}, {target_type})", f"{len(column_names)} column(s)"]
+    summary_parts = [
+        f"{name} ({kind}, {target_type})",
+        f"{len(column_names)} column(s)",
+    ]
     if row_count is not None:
         summary_parts.append(f"{row_count} row(s)")
     if source_paths:
@@ -188,7 +240,10 @@ def _target_summary(
 
 def _target_column_names(target: dict[str, Any]) -> list[str]:
     """Return the catalog column names for one target."""
-    return [cast(str, column["name"]) for column in cast(list[dict[str, Any]], target["columns"])]
+    return [
+        cast(str, column["name"])
+        for column in cast(list[dict[str, Any]], target["columns"])
+    ]
 
 
 def _target_list_item(target: dict[str, Any]) -> dict[str, Any]:
@@ -286,7 +341,9 @@ def _target_suggestion(
     }
 
 
-def _normalized_column_names(column_names: list[str | None]) -> tuple[list[str], list[str]]:
+def _normalized_column_names(
+    column_names: list[str | None],
+) -> tuple[list[str], list[str]]:
     """Return stable, unique column names for row dictionaries."""
     seen: set[str] = set()
     normalized: list[str] = []
@@ -363,10 +420,17 @@ def _sample_rows(
         [safe_limit],
     )
     description = cursor.description or []
-    column_names, _ = _normalized_column_names([cast(Any, column[0]) for column in description])
+    column_names, _ = _normalized_column_names(
+        [cast(Any, column[0]) for column in description]
+    )
     preview_rows = []
     for row in cursor.fetchall():
-        preview_rows.append({column_name: _jsonable_value(value) for column_name, value in _zip_exact(column_names, row)})
+        preview_rows.append(
+            {
+                column_name: _jsonable_value(value)
+                for column_name, value in _zip_exact(column_names, row)
+            }
+        )
     return preview_rows
 
 
@@ -413,7 +477,11 @@ def _requested_database_path(
     database_path: str | Path | None = None,
 ) -> Path:
     """Return the requested SQLite path before existence checks."""
-    return sqlite_database_path(root_dir=root_dir) if database_path is None else Path(database_path)
+    return (
+        sqlite_database_path(root_dir=root_dir)
+        if database_path is None
+        else Path(database_path)
+    )
 
 
 def _open_read_only_connection(database_path: Path) -> sqlite3.Connection:
@@ -438,7 +506,9 @@ def _catalog_state(
 def _has_catalog(connection: sqlite3.Connection) -> bool:
     """Return whether the shared tabular catalog exists in this database."""
     object_names = _sqlite_object_names(connection)
-    return SQLITE_CONTENTS_TABLE in object_names and SQLITE_SOURCES_TABLE in object_names
+    return (
+        SQLITE_CONTENTS_TABLE in object_names and SQLITE_SOURCES_TABLE in object_names
+    )
 
 
 def _base_table_name(name: str, kind: str) -> str:
@@ -464,7 +534,9 @@ def _target_source_paths(
     if content_metadata is None:
         return None, [], []
     source_mappings = source_rows.get(cast(str, content_metadata["content_id"]), [])
-    source_paths = list(dict.fromkeys(cast(str, mapping["source_path"]) for mapping in source_mappings))
+    source_paths = list(
+        dict.fromkeys(cast(str, mapping["source_path"]) for mapping in source_mappings)
+    )
     return content_metadata, source_mappings, source_paths
 
 
@@ -507,7 +579,9 @@ def _cached_database_catalog(
                     "default_value": row[4],
                     "primary_key_position": cast(int, row[5]),
                 }
-                for row in connection.execute(f"PRAGMA table_info({quote_identifier(name)})").fetchall()
+                for row in connection.execute(
+                    f"PRAGMA table_info({quote_identifier(name)})"
+                ).fetchall()
             ]
             content_metadata, source_mappings, source_paths = _target_source_paths(
                 name=name,
@@ -521,9 +595,15 @@ def _cached_database_catalog(
                 "kind": kind,
                 "create_sql": create_sql,
                 "columns": columns,
-                "content_id": None if content_metadata is None else content_metadata["content_id"],
-                "content_schema": None if content_metadata is None else content_metadata["content_schema"],
-                "row_count": None if content_metadata is None else content_metadata["row_count"],
+                "content_id": None
+                if content_metadata is None
+                else content_metadata["content_id"],
+                "content_schema": None
+                if content_metadata is None
+                else content_metadata["content_schema"],
+                "row_count": None
+                if content_metadata is None
+                else content_metadata["row_count"],
                 "source_mappings": source_mappings,
                 "source_paths": source_paths,
             }
@@ -593,7 +673,9 @@ def _text_value_hints(
 
 def _tokenize_query(text: str) -> list[str]:
     """Tokenize a natural-language query for lightweight target suggestion."""
-    tokens = [token for token in re.findall(r"[a-z0-9_]+", text.lower()) if len(token) >= 2]
+    tokens = [
+        token for token in re.findall(r"[a-z0-9_]+", text.lower()) if len(token) >= 2
+    ]
     return [token for token in tokens if token not in _SUGGESTION_STOP_WORDS]
 
 
@@ -612,7 +694,10 @@ def _identifier_similarity(reference: str, candidate: str) -> float:
         return 100.0
 
     score = 0.0
-    if normalized_reference in normalized_candidate or normalized_candidate in normalized_reference:
+    if (
+        normalized_reference in normalized_candidate
+        or normalized_candidate in normalized_reference
+    ):
         score += 40.0
 
     reference_tokens = _identifier_tokens(reference)
@@ -623,20 +708,29 @@ def _identifier_similarity(reference: str, candidate: str) -> float:
         if shared_tokens == reference_tokens == candidate_tokens:
             score += 20.0
 
-    score += SequenceMatcher(a=normalized_reference, b=normalized_candidate).ratio() * 20.0
+    score += (
+        SequenceMatcher(a=normalized_reference, b=normalized_candidate).ratio() * 20.0
+    )
     return score
 
 
-def _rank_identifier_candidates(identifier: str, candidates: list[str], *, max_matches: int) -> list[str]:
+def _rank_identifier_candidates(
+    identifier: str, candidates: list[str], *, max_matches: int
+) -> list[str]:
     """Return the best schema identifier matches for a missing target or column."""
     if not identifier or max_matches <= 0:
         return []
 
     scored_candidates = sorted(
-        ((_identifier_similarity(identifier, candidate), candidate) for candidate in dict.fromkeys(candidates)),
+        (
+            (_identifier_similarity(identifier, candidate), candidate)
+            for candidate in dict.fromkeys(candidates)
+        ),
         key=lambda item: (-item[0], item[1]),
     )
-    return [candidate for score, candidate in scored_candidates if score > 0][:max_matches]
+    return [candidate for score, candidate in scored_candidates if score > 0][
+        :max_matches
+    ]
 
 
 def _error_identifier(error_message: str, prefix: str) -> str:
@@ -763,7 +857,9 @@ def resolve_db_path(
     database_path: str | Path | None = None,
 ) -> Path:
     """Resolve the SQLite database path and ensure it exists."""
-    resolved_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    resolved_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     if not resolved_path.exists():
         raise ValueError(f"SQLite database does not exist: {resolved_path}")
     return resolved_path
@@ -838,7 +934,9 @@ def run_query(
     max_rows: int = MAX_QUERY_ROWS,
 ) -> dict[str, Any]:
     """Run SQL against a SQLite database and return a bounded result."""
-    requested_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    requested_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     safe_max_rows = max(1, max_rows)
     normalized_sql = _normalized_sql(sql)
     try:
@@ -894,7 +992,9 @@ def save_view(
     replace: bool = False,
 ) -> dict[str, Any]:
     """Save one read-only SQL query as a named SQLite view."""
-    requested_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    requested_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     normalized_sql = _normalized_sql(sql)
     normalized_view_name = view_name.strip()
     try:
@@ -911,7 +1011,10 @@ def save_view(
             root_dir=root_dir,
             database_path=database_path,
         )
-        with sqlite_write_lock(resolved_path), closing(sqlite3.connect(str(resolved_path))) as connection:
+        with (
+            sqlite_write_lock(resolved_path),
+            closing(sqlite3.connect(str(resolved_path))) as connection,
+        ):
             existing_row = connection.execute(
                 """
                 SELECT type
@@ -938,9 +1041,13 @@ def save_view(
                         view_name=normalized_view_name,
                         replace=replace,
                     )
-                connection.execute(f"DROP VIEW IF EXISTS {quote_identifier(normalized_view_name)}")
+                connection.execute(
+                    f"DROP VIEW IF EXISTS {quote_identifier(normalized_view_name)}"
+                )
 
-            connection.execute(f"CREATE VIEW {quote_identifier(normalized_view_name)} AS {normalized_sql}")
+            connection.execute(
+                f"CREATE VIEW {quote_identifier(normalized_view_name)} AS {normalized_sql}"
+            )
             connection.commit()
 
         description = describe_target(
@@ -981,7 +1088,9 @@ def list_targets(
     include_internal: bool = False,
 ) -> dict[str, Any]:
     """List queryable SQLite tables and views."""
-    requested_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    requested_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     try:
         resolved_path = resolve_db_path(
             root_dir=root_dir,
@@ -1026,14 +1135,18 @@ def describe_target(
     text_value_hints: int = 3,
 ) -> dict[str, Any]:
     """Describe a single SQLite table or view."""
-    requested_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    requested_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     try:
         resolved_path = resolve_db_path(
             root_dir=root_dir,
             database_path=database_path,
         )
         catalog = _database_catalog(resolved_path)
-        target_info = cast(dict[str, Any] | None, catalog["targets_by_name"].get(target_name))
+        target_info = cast(
+            dict[str, Any] | None, catalog["targets_by_name"].get(target_name)
+        )
         if target_info is None:
             return _error_result(
                 database_path=resolved_path,
@@ -1113,7 +1226,9 @@ def suggest_targets(
     max_results: int = MAX_SUGGESTED_TARGETS,
 ) -> dict[str, Any]:
     """Suggest likely tables or views for a natural-language question."""
-    requested_path = _requested_database_path(root_dir=root_dir, database_path=database_path)
+    requested_path = _requested_database_path(
+        root_dir=root_dir, database_path=database_path
+    )
     safe_max_results = max(1, max_results)
     try:
         tokens = _tokenize_query(question)
@@ -1143,7 +1258,9 @@ def suggest_targets(
                 continue
             suggestions.append(suggestion)
 
-        suggestions.sort(key=lambda item: (-cast(int, item["score"]), cast(str, item["name"])))
+        suggestions.sort(
+            key=lambda item: (-cast(int, item["score"]), cast(str, item["name"]))
+        )
         top_suggestions = suggestions[:safe_max_results]
         return {
             "database_path": str(resolved_path),
@@ -1210,7 +1327,9 @@ def suggest_sql_error_repair(
             kind="missing_column",
             identifier=missing_column,
             candidates=candidates,
-            message=(f"Column `{missing_column}` was not found. Closest inspected columns: {_format_repair_candidates(candidates, include_targets=True)}."),
+            message=(
+                f"Column `{missing_column}` was not found. Closest inspected columns: {_format_repair_candidates(candidates, include_targets=True)}."
+            ),
         )
 
     if lowered_error.startswith(_MISSING_TABLE_ERROR_PREFIX):
@@ -1228,12 +1347,20 @@ def suggest_sql_error_repair(
             kind="missing_target",
             identifier=missing_target,
             candidates=candidates,
-            message=(f"Target `{missing_target}` was not found. Closest inspected targets: {_format_repair_candidates(candidates, include_targets=False)}."),
+            message=(
+                f"Target `{missing_target}` was not found. Closest inspected targets: {_format_repair_candidates(candidates, include_targets=False)}."
+            ),
         )
 
     if lowered_error.startswith(_AMBIGUOUS_COLUMN_ERROR_PREFIX):
-        ambiguous_column = _error_identifier(error_message, _AMBIGUOUS_COLUMN_ERROR_PREFIX)
-        matching_targets = sorted(target_name for target_name, columns in target_columns.items() if ambiguous_column in columns)
+        ambiguous_column = _error_identifier(
+            error_message, _AMBIGUOUS_COLUMN_ERROR_PREFIX
+        )
+        matching_targets = sorted(
+            target_name
+            for target_name, columns in target_columns.items()
+            if ambiguous_column in columns
+        )
         if not matching_targets:
             return []
 

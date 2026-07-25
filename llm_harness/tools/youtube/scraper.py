@@ -13,7 +13,12 @@ import httpx
 from langchain.tools import tool
 from pydantic import BaseModel, ConfigDict
 
-from ...utils.youtube_utils import clean_text, clean_youtube_url, extract_video_id, is_youtube_url
+from ...utils.youtube_utils import (
+    clean_text,
+    clean_youtube_url,
+    extract_video_id,
+    is_youtube_url,
+)
 
 load_dotenv()
 
@@ -94,7 +99,10 @@ class YouTubeScrapperResult(BaseModel):
     @property
     def has_transcript(self) -> bool:
         """Check if video has a transcript available."""
-        return bool(self.transcript or (self.transcript_only_text and self.transcript_only_text.strip()))
+        return bool(
+            self.transcript
+            or (self.transcript_only_text and self.transcript_only_text.strip())
+        )
 
 
 def _fetch_scrape_creators(video_url: str) -> YouTubeScrapperResult | None:
@@ -215,7 +223,9 @@ def scrape_youtube(youtube_url: str) -> YouTubeScrapperResult:
     if result and result.has_transcript:
         return result
 
-    if not _get_api_key("SCRAPECREATORS_API_KEY") and not _get_api_key("SUPADATA_API_KEY"):
+    if not _get_api_key("SCRAPECREATORS_API_KEY") and not _get_api_key(
+        "SUPADATA_API_KEY"
+    ):
         raise ValueError("No API keys found for Scrape Creators or Supadata")
 
     raise ValueError("Failed to fetch transcript from available providers")

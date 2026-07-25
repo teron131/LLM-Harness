@@ -12,7 +12,11 @@ from langchain.tools import tool
 
 DEFAULT_TIMEOUT_SEC = 20.0
 MAX_OUTPUT_CHARS = 12_000
-REQUEST_HEADERS = {"User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")}
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+    )
+}
 
 
 def _clean_text(text: str) -> str:
@@ -30,12 +34,18 @@ def _clean_text(text: str) -> str:
 
 def _extract_html_text(html: str, url: str) -> str | None:
     """Strip obvious boilerplate tags and return readable page text."""
-    title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
+    title_match = re.search(
+        r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL
+    )
     title = unescape(title_match.group(1)).strip() if title_match else ""
 
-    cleaned_html = re.sub(r"(?is)<(script|style|noscript|svg|iframe).*?>.*?</\1>", " ", html)
+    cleaned_html = re.sub(
+        r"(?is)<(script|style|noscript|svg|iframe).*?>.*?</\1>", " ", html
+    )
     cleaned_html = re.sub(r"(?i)<br\s*/?>", "\n", cleaned_html)
-    cleaned_html = re.sub(r"(?i)</(p|div|section|article|main|li|h[1-6])>", "\n", cleaned_html)
+    cleaned_html = re.sub(
+        r"(?i)</(p|div|section|article|main|li|h[1-6])>", "\n", cleaned_html
+    )
     text = unescape(re.sub(r"(?s)<[^>]+>", " ", cleaned_html))
     text = _clean_text(text)
     if not text:

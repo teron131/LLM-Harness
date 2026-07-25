@@ -46,18 +46,32 @@ def get_match_model_mapping(
         else get_models_dev_stats()
     )
     models_dev_models = cast(list[dict[str, Any]], models_dev_stats.get("models") or [])
-    artificial_analysis_models = cast(list[dict[str, Any]], artificial_analysis_stats.get("models") or [])
+    artificial_analysis_models = cast(
+        list[dict[str, Any]], artificial_analysis_stats.get("models") or []
+    )
     provider_pools = split_preferred_provider_models(models_dev_models)
-    total_scoped_models = unique_model_count(provider_pools["primary"] + provider_pools["fallback"])
-    source_models = build_source_models_from_artificial_analysis(artificial_analysis_models)
+    total_scoped_models = unique_model_count(
+        provider_pools["primary"] + provider_pools["fallback"]
+    )
+    source_models = build_source_models_from_artificial_analysis(
+        artificial_analysis_models
+    )
     matcher_output = run_matcher(source_models, provider_pools, max_candidates)
     return cast(
         LlmMatchModelMappingPayload,
         {
-            "artificial_analysis_fetched_at_epoch_seconds": artificial_analysis_stats.get("fetched_at_epoch_seconds")
-            if isinstance(artificial_analysis_stats.get("fetched_at_epoch_seconds"), int)
+            "artificial_analysis_fetched_at_epoch_seconds": artificial_analysis_stats.get(
+                "fetched_at_epoch_seconds"
+            )
+            if isinstance(
+                artificial_analysis_stats.get("fetched_at_epoch_seconds"), int
+            )
             else None,
-            "models_dev_fetched_at_epoch_seconds": models_dev_stats.get("fetched_at_epoch_seconds") if isinstance(models_dev_stats.get("fetched_at_epoch_seconds"), int) else None,
+            "models_dev_fetched_at_epoch_seconds": models_dev_stats.get(
+                "fetched_at_epoch_seconds"
+            )
+            if isinstance(models_dev_stats.get("fetched_at_epoch_seconds"), int)
+            else None,
             "total_artificial_analysis_models": len(matcher_output["models"]),
             "total_models_dev_models": total_scoped_models,
             "max_candidates": max_candidates,
@@ -94,14 +108,24 @@ def get_scraper_fallback_match_diagnostics(
     models_dev_models = cast(list[dict[str, Any]], models_dev_stats.get("models") or [])
     scraped_rows = cast(list[dict[str, Any]], scraped_stats.get("data") or [])
     provider_pools = split_preferred_provider_models(models_dev_models)
-    total_scoped_models = unique_model_count(provider_pools["primary"] + provider_pools["fallback"])
+    total_scoped_models = unique_model_count(
+        provider_pools["primary"] + provider_pools["fallback"]
+    )
     source_models = build_source_models_from_scraped_rows(scraped_rows)
     matcher_output = run_matcher(source_models, provider_pools, max_candidates)
     return cast(
         LlmScraperFallbackMatchDiagnosticsPayload,
         {
-            "scraped_fetched_at_epoch_seconds": scraped_stats.get("fetched_at_epoch_seconds") if isinstance(scraped_stats.get("fetched_at_epoch_seconds"), int) else None,
-            "models_dev_fetched_at_epoch_seconds": models_dev_stats.get("fetched_at_epoch_seconds") if isinstance(models_dev_stats.get("fetched_at_epoch_seconds"), int) else None,
+            "scraped_fetched_at_epoch_seconds": scraped_stats.get(
+                "fetched_at_epoch_seconds"
+            )
+            if isinstance(scraped_stats.get("fetched_at_epoch_seconds"), int)
+            else None,
+            "models_dev_fetched_at_epoch_seconds": models_dev_stats.get(
+                "fetched_at_epoch_seconds"
+            )
+            if isinstance(models_dev_stats.get("fetched_at_epoch_seconds"), int)
+            else None,
             "total_scraped_models": len(scraped_rows),
             "total_models_dev_models": total_scoped_models,
             "max_candidates": max_candidates,

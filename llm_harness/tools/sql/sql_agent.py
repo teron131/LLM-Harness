@@ -55,17 +55,37 @@ _QUESTION_STOP_WORDS = {
     "which",
     "with",
 }
-_VAGUE_QUESTION_TOKENS = {"doing", "everything", "numbers", "overall", "overview", "performance", "stats", "status", "summary"}
+_VAGUE_QUESTION_TOKENS = {
+    "doing",
+    "everything",
+    "numbers",
+    "overall",
+    "overview",
+    "performance",
+    "stats",
+    "status",
+    "summary",
+}
 
 
 class SQLPlan(BaseModel):
     """Structured SQL planning output."""
 
-    ready: bool = Field(description="Whether the planner is confident enough to run SQL.")
-    sql: str | None = Field(default=None, description="Read-only SQL query to execute when ready is true.")
-    selected_targets: list[str] = Field(default_factory=list, description="Target tables or views used by the plan.")
-    rationale: str = Field(default="", description="Short reasoning for the chosen SQL.")
-    blocking_reason: str | None = Field(default=None, description="Why planning could not safely proceed.")
+    ready: bool = Field(
+        description="Whether the planner is confident enough to run SQL."
+    )
+    sql: str | None = Field(
+        default=None, description="Read-only SQL query to execute when ready is true."
+    )
+    selected_targets: list[str] = Field(
+        default_factory=list, description="Target tables or views used by the plan."
+    )
+    rationale: str = Field(
+        default="", description="Short reasoning for the chosen SQL."
+    )
+    blocking_reason: str | None = Field(
+        default=None, description="Why planning could not safely proceed."
+    )
 
 
 class SQLAgentInput(BaseModel):
@@ -168,8 +188,13 @@ def _compact_sample_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _compact_text_value_hints(text_value_hints: dict[str, list[str]]) -> dict[str, Any]:
     """Return bounded text-value hints for planning."""
     hint_items = list(text_value_hints.items())
-    preview_items, truncated = _preview_list(hint_items, max_items=MAX_AGENT_TEXT_HINT_COLUMNS)
-    compact_hints = {column_name: values[:MAX_AGENT_TEXT_HINT_VALUES] for column_name, values in preview_items}
+    preview_items, truncated = _preview_list(
+        hint_items, max_items=MAX_AGENT_TEXT_HINT_COLUMNS
+    )
+    compact_hints = {
+        column_name: values[:MAX_AGENT_TEXT_HINT_VALUES]
+        for column_name, values in preview_items
+    }
     return {
         "count": len(hint_items),
         "truncated": truncated,
@@ -179,7 +204,9 @@ def _compact_text_value_hints(text_value_hints: dict[str, list[str]]) -> dict[st
 
 def _compact_source_mappings(source_mappings: list[dict[str, Any]]) -> dict[str, Any]:
     """Return a bounded preview of source mappings."""
-    preview_mappings, truncated = _preview_list(source_mappings, max_items=MAX_AGENT_SOURCE_MAPPING_PREVIEW)
+    preview_mappings, truncated = _preview_list(
+        source_mappings, max_items=MAX_AGENT_SOURCE_MAPPING_PREVIEW
+    )
     return {
         "count": len(source_mappings),
         "truncated": truncated,
@@ -239,7 +266,9 @@ def _compact_query_result(result: dict[str, Any]) -> dict[str, Any]:
 
     rows = list(result.get("rows", []))
     columns = [str(column) for column in result.get("columns", [])]
-    preview_columns, columns_truncated = _preview_list(columns, max_items=MAX_AGENT_ROW_COLUMNS)
+    preview_columns, columns_truncated = _preview_list(
+        columns, max_items=MAX_AGENT_ROW_COLUMNS
+    )
     preview_rows, rows_truncated = _preview_list(rows, max_items=MAX_AGENT_SAMPLE_ROWS)
     return {
         "status": "ok",
@@ -257,7 +286,11 @@ def _compact_query_result(result: dict[str, Any]) -> dict[str, Any]:
 
 def _needs_clarification(question: str) -> str | None:
     """Return a clarification message when the question is too vague."""
-    tokens = [token for token in re.findall(r"[a-z0-9_]+", question.lower()) if token not in _QUESTION_STOP_WORDS]
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9_]+", question.lower())
+        if token not in _QUESTION_STOP_WORDS
+    ]
     if not tokens:
         return "Question is too vague. Ask for a specific metric, dimension, or summary target."
     if all(token in _VAGUE_QUESTION_TOKENS for token in tokens):
@@ -270,7 +303,9 @@ def _build_planner_messages(state: SQLAgentState) -> list[SystemMessage | HumanM
     payload = {
         "question": state.question,
         "candidate_targets": state.suggestions,
-        "inspected_targets": [_compact_inspected_target(target) for target in state.inspected_targets],
+        "inspected_targets": [
+            _compact_inspected_target(target) for target in state.inspected_targets
+        ],
         "previous_sql": state.candidate_sql,
         "previous_error": state.last_error,
         "repair_hints": state.repair_hints,
@@ -293,13 +328,19 @@ def make_llm_planner(
     *,
     model: str | None = None,
     temperature: float = 0,
-    reasoning_effort: Literal["minimal", "low", "medium", "high"] = DEFAULT_SQL_AGENT_REASONING,
+    reasoning_effort: Literal[
+        "minimal", "low", "medium", "high"
+    ] = DEFAULT_SQL_AGENT_REASONING,
 ) -> PlannerFn:
     """Create a structured SQL planner backed by a chat model."""
     if llm is None:
-        resolved_model = model or os.getenv(DEFAULT_SQL_AGENT_MODEL_ENV) or DEFAULT_SQL_AGENT_MODEL
+        resolved_model = (
+            model or os.getenv(DEFAULT_SQL_AGENT_MODEL_ENV) or DEFAULT_SQL_AGENT_MODEL
+        )
         if not resolved_model:
-            raise ValueError(f"No SQL agent model configured. Pass `llm=...`, `model=...`, or set `{DEFAULT_SQL_AGENT_MODEL_ENV}`.")
+            raise ValueError(
+                f"No SQL agent model configured. Pass `llm=...`, `model=...`, or set `{DEFAULT_SQL_AGENT_MODEL_ENV}`."
+            )
         llm = ChatOpenAI(
             model=resolved_model,
             temperature=temperature,
@@ -333,13 +374,17 @@ def suggest_node(state: SQLAgentState) -> dict[str, Any]:
                 "message": suggestion_result.get("message"),
                 "database_path": suggestion_result.get("database_path"),
             },
-            "trace": _append_trace(state, f"suggest failed: {suggestion_result['message']}"),
+            "trace": _append_trace(
+                state, f"suggest failed: {suggestion_result['message']}"
+            ),
         }
 
     return {
         "status": "suggested",
         "suggestions": suggestion_result["suggestions"],
-        "trace": _append_trace(state, f"suggested {suggestion_result['suggestion_count']} targets"),
+        "trace": _append_trace(
+            state, f"suggested {suggestion_result['suggestion_count']} targets"
+        ),
     }
 
 
@@ -372,7 +417,10 @@ def inspect_node(state: SQLAgentState) -> dict[str, Any]:
 
 def clarify_node(state: SQLAgentState) -> dict[str, Any]:
     """Block execution when the question needs clarification."""
-    message = _needs_clarification(state.question) or "Question needs clarification before SQL planning."
+    message = (
+        _needs_clarification(state.question)
+        or "Question needs clarification before SQL planning."
+    )
     return {
         "status": "blocked",
         "last_error": message,
@@ -386,14 +434,17 @@ def make_plan_node(planner: PlannerFn) -> Callable[[SQLAgentState], dict[str, An
     def plan_node(state: SQLAgentState) -> dict[str, Any]:
         """Run the planning node in the SQL agent graph."""
         plan = planner(state)
-        selected_targets = plan.selected_targets or [cast(str, target["name"]) for target in state.inspected_targets]
+        selected_targets = plan.selected_targets or [
+            cast(str, target["name"]) for target in state.inspected_targets
+        ]
         if not plan.ready or not plan.sql:
             return {
                 "status": "blocked",
                 "plan": plan,
                 "selected_targets": selected_targets,
                 "rationale": plan.rationale,
-                "last_error": plan.blocking_reason or "Planner could not produce a safe SQL query.",
+                "last_error": plan.blocking_reason
+                or "Planner could not produce a safe SQL query.",
                 "trace": _append_trace(state, "planner blocked execution"),
             }
 
@@ -403,7 +454,9 @@ def make_plan_node(planner: PlannerFn) -> Callable[[SQLAgentState], dict[str, An
             "candidate_sql": plan.sql,
             "selected_targets": selected_targets,
             "rationale": plan.rationale,
-            "trace": _append_trace(state, f"planned SQL for {', '.join(selected_targets)}"),
+            "trace": _append_trace(
+                state, f"planned SQL for {', '.join(selected_targets)}"
+            ),
         }
 
     return plan_node
@@ -432,9 +485,17 @@ def execute_node(state: SQLAgentState) -> dict[str, Any]:
             "trace": _append_trace(state, f"execute succeeded on attempt {attempts}"),
         }
 
-    repair_target_names = [cast(str, suggestion["name"]) for suggestion in state.suggestions if suggestion.get("name")]
+    repair_target_names = [
+        cast(str, suggestion["name"])
+        for suggestion in state.suggestions
+        if suggestion.get("name")
+    ]
     repair_columns = {
-        cast(str, target["name"]): [cast(str, column["name"]) for column in target.get("columns", []) if column.get("name")]
+        cast(str, target["name"]): [
+            cast(str, column["name"])
+            for column in target.get("columns", [])
+            if column.get("name")
+        ]
         for target in state.inspected_targets
         if target.get("name")
     }
@@ -557,7 +618,9 @@ class SQLAgent:
         llm: BaseChatModel | None = None,
         model: str | None = None,
         temperature: float = 0,
-        reasoning_effort: Literal["minimal", "low", "medium", "high"] = DEFAULT_SQL_AGENT_REASONING,
+        reasoning_effort: Literal[
+            "minimal", "low", "medium", "high"
+        ] = DEFAULT_SQL_AGENT_REASONING,
     ):
         """Initialize the SQL agent with the available tool set."""
         self.planner = planner or make_llm_planner(
@@ -586,7 +649,9 @@ class SQLAgent:
         result = self.graph.invoke(
             SQLAgentInput(
                 question=question,
-                database_path=None if database_path is None else str(Path(database_path).expanduser().resolve()),
+                database_path=None
+                if database_path is None
+                else str(Path(database_path).expanduser().resolve()),
                 max_suggestions=max_suggestions,
                 max_repairs=max_repairs,
                 sample_rows=sample_rows,

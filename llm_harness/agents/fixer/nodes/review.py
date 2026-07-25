@@ -6,7 +6,12 @@ from langchain.messages import HumanMessage, SystemMessage
 
 from ....clients.openai import ChatOpenAI
 from ....clients.parser import get_metadata
-from ..prompts import CLEAN_TASK_LOG, DEFAULT_FIXER_SYSTEM_PROMPT, build_fixer_progress_prompt, build_review_system_prompt
+from ..prompts import (
+    CLEAN_TASK_LOG,
+    DEFAULT_FIXER_SYSTEM_PROMPT,
+    build_fixer_progress_prompt,
+    build_review_system_prompt,
+)
 from ..state import FixerState
 from .common import (
     MAX_REPEAT_REMAINING_REVIEWS,
@@ -75,7 +80,9 @@ def _run_review_snapshot(
         ]
     )
     tokens_in, tokens_out, cost = get_metadata(response)
-    progress.fixer_notes = _strip_code_fences(str(response.content or "")) or CLEAN_TASK_LOG
+    progress.fixer_notes = (
+        _strip_code_fences(str(response.content or "")) or CLEAN_TASK_LOG
+    )
     _add_usage(
         progress,
         tokens_in=tokens_in,
@@ -108,7 +115,10 @@ def _review_and_maybe_stop(
     """Review a non-patched terminal signal and stop if the file is clean enough."""
     _run_review_snapshot(state=state, progress=progress, current_text=current_text)
     current_remaining_block = _normalized_remaining_block(progress.fixer_notes)
-    if current_remaining_block and current_remaining_block == progress.last_remaining_block:
+    if (
+        current_remaining_block
+        and current_remaining_block == progress.last_remaining_block
+    ):
         progress.repeated_remaining_reviews += 1
     else:
         progress.repeated_remaining_reviews = 0
@@ -116,7 +126,9 @@ def _review_and_maybe_stop(
 
     done_suffix, stalled_reason = STOP_KIND_STATUS[stop_kind]
     if stop_reason := _stop_reason_for_task_log(progress.fixer_notes):
-        logger.info("[FIXER] Stop reason=%s%s at pass=%s", stop_reason, done_suffix, turn)
+        logger.info(
+            "[FIXER] Stop reason=%s%s at pass=%s", stop_reason, done_suffix, turn
+        )
         return progress.build_result(
             iteration=turn,
             last_text=done_last_text,
@@ -147,7 +159,9 @@ def _review_patched_text(
     task_log = progress.fixer_notes.replace("\n", " | ").strip()
     logger.info("[FIXER] Task log after pass %s: %s", iteration, task_log)
     if stop_reason := _stop_reason_for_task_log(progress.fixer_notes):
-        logger.info("[FIXER] Stop reason=%s_after_patch at pass=%s", stop_reason, iteration)
+        logger.info(
+            "[FIXER] Stop reason=%s_after_patch at pass=%s", stop_reason, iteration
+        )
         return (
             progress.state_update()
             | progress.build_result(

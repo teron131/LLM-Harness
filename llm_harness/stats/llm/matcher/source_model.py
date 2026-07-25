@@ -11,9 +11,15 @@ def build_source_models_from_artificial_analysis(
     """Build the source models from artificial analysis."""
     return [
         {
-            "source_slug": model.get("slug") if isinstance(model.get("slug"), str) else "",
-            "source_name": model.get("name") if isinstance(model.get("name"), str) else None,
-            "source_release_date": model.get("release_date") if isinstance(model.get("release_date"), str) else None,
+            "source_slug": model.get("slug")
+            if isinstance(model.get("slug"), str)
+            else "",
+            "source_name": model.get("name")
+            if isinstance(model.get("name"), str)
+            else None,
+            "source_release_date": model.get("release_date")
+            if isinstance(model.get("release_date"), str)
+            else None,
         }
         for model in artificial_analysis_models
     ]

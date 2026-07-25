@@ -47,7 +47,11 @@ def build_langgraph_mermaid(
     """Build a Mermaid flowchart from a compiled LangGraph graph."""
     graph_spec: Graph = graph.get_graph()
     edge_labels = _edge_labels_from_graph(graph) if show_edge_labels else {}
-    visible_nodes = {node_id: node for node_id, node in graph_spec.nodes.items() if node_id not in _SENTINEL_NODES}
+    visible_nodes = {
+        node_id: node
+        for node_id, node in graph_spec.nodes.items()
+        if node_id not in _SENTINEL_NODES
+    }
     labeled_edges = [
         Edge(
             source=edge.source,
@@ -74,7 +78,11 @@ def write_langgraph_artifacts(
     show_edge_labels: bool = False,
 ) -> dict[str, str]:
     """Write Mermaid and PNG artifacts for any compiled LangGraph graph."""
-    resolved_output_dir = (Path(output_dir) if output_dir is not None else DEFAULT_GRAPH_DIR).expanduser().resolve()
+    resolved_output_dir = (
+        (Path(output_dir) if output_dir is not None else DEFAULT_GRAPH_DIR)
+        .expanduser()
+        .resolve()
+    )
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
 
     mermaid_path = resolved_output_dir / f"{filename_stem}.mmd"

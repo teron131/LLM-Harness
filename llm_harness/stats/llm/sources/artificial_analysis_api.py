@@ -52,7 +52,9 @@ def _signed_log(value: Any, *, invert: bool = False) -> float | None:
 
 def _mean(values: list[float | None]) -> float | None:
     """Helper for mean."""
-    finite_values = [value for value in values if value is not None and math.isfinite(value)]
+    finite_values = [
+        value for value in values if value is not None and math.isfinite(value)
+    ]
     if not finite_values:
         return None
     return sum(finite_values) / len(finite_values)
@@ -60,7 +62,14 @@ def _mean(values: list[float | None]) -> float | None:
 
 def _weighted_mean(pairs: list[tuple[float | None, float]]) -> float | None:
     """Compute a finite-aware aggregate for Artificial Analysis API source."""
-    valid_pairs = [(value, weight) for value, weight in pairs if value is not None and math.isfinite(value) and math.isfinite(weight) and weight > 0]
+    valid_pairs = [
+        (value, weight)
+        for value, weight in pairs
+        if value is not None
+        and math.isfinite(value)
+        and math.isfinite(weight)
+        and weight > 0
+    ]
     if not valid_pairs:
         return None
     weighted_sum = sum(value * weight for value, weight in valid_pairs)
@@ -105,8 +114,19 @@ def _compute_scores(filtered_models: list[dict[str, Any]]) -> list[dict[str, Any
         blended_price = pricing.get("price_1m_blended_3_to_1")
         ttfa = model.get("median_time_to_first_answer_token")
         tps = model.get("median_output_tokens_per_second")
-        intelligence_score = (2 * intelligence) + coding if intelligence is not None and coding is not None else None
-        benchmark_bias_score = _mean([_as_finite_float(evaluations.get(key)) if _is_positive_finite(evaluations.get(key)) else None for key in BENCHMARK_KEYS])
+        intelligence_score = (
+            (2 * intelligence) + coding
+            if intelligence is not None and coding is not None
+            else None
+        )
+        benchmark_bias_score = _mean(
+            [
+                _as_finite_float(evaluations.get(key))
+                if _is_positive_finite(evaluations.get(key))
+                else None
+                for key in BENCHMARK_KEYS
+            ]
+        )
         price_score = _signed_log(blended_price, invert=True)
         speed_score = _mean([_signed_log(ttfa, invert=True), _signed_log(tps)])
         scored_models.append(
@@ -140,9 +160,15 @@ def _rank_and_enrich_models(
         model
         for model in models
         if (model.get("release_date") or "") >= cutoff_date
-        and _is_positive_finite((model.get("pricing") or {}).get("price_1m_blended_3_to_1"))
-        and _is_positive_finite((model.get("pricing") or {}).get("price_1m_input_tokens"))
-        and _is_positive_finite((model.get("pricing") or {}).get("price_1m_output_tokens"))
+        and _is_positive_finite(
+            (model.get("pricing") or {}).get("price_1m_blended_3_to_1")
+        )
+        and _is_positive_finite(
+            (model.get("pricing") or {}).get("price_1m_input_tokens")
+        )
+        and _is_positive_finite(
+            (model.get("pricing") or {}).get("price_1m_output_tokens")
+        )
         and _is_positive_finite(model.get("median_time_to_first_answer_token"))
         and _is_positive_finite(model.get("median_output_tokens_per_second"))
     ]
@@ -151,15 +177,25 @@ def _rank_and_enrich_models(
         raw_scores = model.get("scores")
         scores = raw_scores if isinstance(raw_scores, dict) else {}
         overall_score = scores.get("overall_score")
-        if isinstance(overall_score, int | float) and math.isfinite(float(overall_score)):
+        if isinstance(overall_score, int | float) and math.isfinite(
+            float(overall_score)
+        ):
             scored_models.append(model)
     ranked = sorted(
         scored_models,
-        key=lambda model: float(model["scores"]["overall_score"] if isinstance(model.get("scores"), dict) else 0),
+        key=lambda model: float(
+            model["scores"]["overall_score"]
+            if isinstance(model.get("scores"), dict)
+            else 0
+        ),
         reverse=True,
     )
-    overall_values = [(model.get("scores") or {}).get("overall_score") for model in ranked]
-    intelligence_values = [(model.get("scores") or {}).get("intelligence_score") for model in ranked]
+    overall_values = [
+        (model.get("scores") or {}).get("overall_score") for model in ranked
+    ]
+    intelligence_values = [
+        (model.get("scores") or {}).get("intelligence_score") for model in ranked
+    ]
     speed_values = [(model.get("scores") or {}).get("speed_score") for model in ranked]
     price_values = [(model.get("scores") or {}).get("price_score") for model in ranked]
     return [
@@ -211,11 +247,15 @@ def get_artificial_analysis_stats(
     try:
         api_key = options.get("api_key") or os.getenv("ARTIFICIALANALYSIS_API_KEY")
         source_payload = _fetch_models(api_key)
-        cutoff_date = (datetime.now(UTC) - timedelta(days=LOOKBACK_DAYS)).date().isoformat()
+        cutoff_date = (
+            (datetime.now(UTC) - timedelta(days=LOOKBACK_DAYS)).date().isoformat()
+        )
         return {
             "fetched_at_epoch_seconds": source_payload["fetched_at_epoch_seconds"],
             "status_code": source_payload["status_code"],
-            "models": _rank_and_enrich_models(source_payload.get("models", []), cutoff_date),
+            "models": _rank_and_enrich_models(
+                source_payload.get("models", []), cutoff_date
+            ),
         }
     except Exception:
         return {

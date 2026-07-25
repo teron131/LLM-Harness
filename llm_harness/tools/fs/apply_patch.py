@@ -259,7 +259,11 @@ def _parse_patch_chunk(
 def _is_chunk_boundary(line: str) -> bool:
     """Return whether a line starts the next chunk or file-level patch marker."""
     stripped = line.strip()
-    return stripped.startswith("*** ") or line == EMPTY_CHANGE_CONTEXT_MARKER or line.startswith(CHANGE_CONTEXT_MARKER)
+    return (
+        stripped.startswith("*** ")
+        or line == EMPTY_CHANGE_CONTEXT_MARKER
+        or line.startswith(CHANGE_CONTEXT_MARKER)
+    )
 
 
 def _validate_single_file_patch(
@@ -272,7 +276,9 @@ def _validate_single_file_patch(
         expected_path = target_path.lstrip("/")
         actual_path = file_patch.path.lstrip("/")
         if actual_path != expected_path:
-            raise ValueError(f"Patch targets {file_patch.path!r}, expected {target_path!r}.")
+            raise ValueError(
+                f"Patch targets {file_patch.path!r}, expected {target_path!r}."
+            )
     if file_patch.move_path is not None:
         raise ValueError("Move operations are not supported.")
     return file_patch
@@ -282,8 +288,16 @@ def _collect_patch_stats(file_patches: list[FilePatch]) -> PatchStats:
     """Aggregate chunk and line-change totals across parsed file patches."""
     return PatchStats(
         chunk_count=sum(len(file_patch.chunks) for file_patch in file_patches),
-        lines_removed=sum(chunk.removed_lines for file_patch in file_patches for chunk in file_patch.chunks),
-        lines_inserted=sum(chunk.inserted_lines for file_patch in file_patches for chunk in file_patch.chunks),
+        lines_removed=sum(
+            chunk.removed_lines
+            for file_patch in file_patches
+            for chunk in file_patch.chunks
+        ),
+        lines_inserted=sum(
+            chunk.inserted_lines
+            for file_patch in file_patches
+            for chunk in file_patch.chunks
+        ),
     )
 
 
@@ -324,7 +338,9 @@ def _find_replacements(
                 eof=False,
             )
             if context_index is None:
-                raise ValueError(f"Failed to find context {chunk.change_context!r} in {file_path}.")
+                raise ValueError(
+                    f"Failed to find context {chunk.change_context!r} in {file_path}."
+                )
             line_index = context_index + 1
 
         if not chunk.old_lines:

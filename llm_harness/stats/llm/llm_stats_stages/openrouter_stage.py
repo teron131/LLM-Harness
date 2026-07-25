@@ -21,9 +21,15 @@ def _normalize_openrouter_speed(performance: Any) -> dict[str, Any]:
     """Normalize the openrouter speed."""
     parsed = as_record(performance)
     return {
-        "throughput_tokens_per_second_median": as_finite_number(parsed.get("throughput_tokens_per_second_median")),
-        "latency_seconds_median": as_finite_number(parsed.get("latency_seconds_median")),
-        "e2e_latency_seconds_median": as_finite_number(parsed.get("e2e_latency_seconds_median")),
+        "throughput_tokens_per_second_median": as_finite_number(
+            parsed.get("throughput_tokens_per_second_median")
+        ),
+        "latency_seconds_median": as_finite_number(
+            parsed.get("latency_seconds_median")
+        ),
+        "e2e_latency_seconds_median": as_finite_number(
+            parsed.get("e2e_latency_seconds_median")
+        ),
     }
 
 
@@ -45,7 +51,10 @@ def _has_intelligence_cost(row: dict[str, Any]) -> bool:
 def _has_score_signal(row: dict[str, Any]) -> bool:
     """Return whether the row includes any usable score signal."""
     scores = as_record(row.get("scores"))
-    return any(as_finite_number(scores.get(key)) is not None for key in ("intelligence_score", "agentic_score", "speed_score", "price_score"))
+    return any(
+        as_finite_number(scores.get(key)) is not None
+        for key in ("intelligence_score", "agentic_score", "speed_score", "price_score")
+    )
 
 
 def _reasoning_effort_priority(aa_slug: str | None, canonical_slug: str | None) -> int:
@@ -79,8 +88,15 @@ def _row_priority(row: dict[str, Any], normalized_id: str) -> int:
     score_signal_boost = 10 if _has_score_signal(row) else 0
     aa_slug = row.get("aa_slug") if isinstance(row.get("aa_slug"), str) else None
     canonical_slug = model_slug_from_model_id(normalized_id)
-    reasoning_effort_boost = _reasoning_effort_priority(aa_slug, canonical_slug) * 10_000_000
-    return reasoning_effort_boost + openrouter_boost + intelligence_cost_boost + score_signal_boost
+    reasoning_effort_boost = (
+        _reasoning_effort_priority(aa_slug, canonical_slug) * 10_000_000
+    )
+    return (
+        reasoning_effort_boost
+        + openrouter_boost
+        + intelligence_cost_boost
+        + score_signal_boost
+    )
 
 
 def _dedupe_rows_prefer_openrouter(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -98,12 +114,19 @@ def _dedupe_rows_prefer_openrouter(rows: list[dict[str, Any]]) -> list[dict[str,
 
     deduped_rows: list[dict[str, Any]] = []
     for normalized_id, group in grouped_by_normalized_id.items():
-        winner = sorted(group, key=lambda row: _row_priority(row, normalized_id), reverse=True)[0]
-        merged_intelligence_index_cost = dict(as_record(winner.get("intelligence_index_cost")))
+        winner = sorted(
+            group, key=lambda row: _row_priority(row, normalized_id), reverse=True
+        )[0]
+        merged_intelligence_index_cost = dict(
+            as_record(winner.get("intelligence_index_cost"))
+        )
         for candidate in group:
             candidate_cost = as_record(candidate.get("intelligence_index_cost"))
             for key, value in candidate_cost.items():
-                if merged_intelligence_index_cost.get(key) is None and value is not None:
+                if (
+                    merged_intelligence_index_cost.get(key) is None
+                    and value is not None
+                ):
                     merged_intelligence_index_cost[key] = value
         deduped_rows.append(
             {
@@ -125,7 +148,12 @@ def _backfill_free_model_costs(rows: list[dict[str, Any]]) -> list[dict[str, Any
         cost = as_record(row_record.get("cost"))
         input_cost = as_finite_number(cost.get("input"))
         output_cost = as_finite_number(cost.get("output"))
-        if input_cost is not None and input_cost > 0 and output_cost is not None and output_cost > 0:
+        if (
+            input_cost is not None
+            and input_cost > 0
+            and output_cost is not None
+            and output_cost > 0
+        ):
             non_free_cost_by_id[row_id] = cost
 
     enriched_rows = []
@@ -154,7 +182,9 @@ def enrich_rows(
     scoring_config = scoring_config or {}
     deduped_rows = _dedupe_rows_prefer_openrouter(matched_rows)
     rows = _backfill_free_model_costs(deduped_rows)
-    model_ids = [row_id for row in rows if isinstance((row_id := row.get("id")), str) and row_id]
+    model_ids = [
+        row_id for row in rows if isinstance((row_id := row.get("id")), str) and row_id
+    ]
     openrouter_payload = (
         get_openrouter_scraped_stats(
             {

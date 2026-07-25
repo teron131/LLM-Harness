@@ -35,7 +35,9 @@ class SandboxFS:
         if cleaned_path.startswith("~"):
             raise ValueError(PATH_TRAVERSAL_ERROR)
 
-        virtual_path = cleaned_path if cleaned_path.startswith("/") else f"/{cleaned_path}"
+        virtual_path = (
+            cleaned_path if cleaned_path.startswith("/") else f"/{cleaned_path}"
+        )
         if ".." in virtual_path:
             raise ValueError(PATH_TRAVERSAL_ERROR)
 
@@ -82,7 +84,9 @@ class SandboxFS:
             chunks=file_patch.chunks,
         )
         self.write_text(path, updated_text)
-        logger.info(f"[FS_PATCH] {path} c={patch_stats.chunk_count} r={patch_stats.lines_removed} i={patch_stats.lines_inserted} t={patch_stats.lines_touched}")
+        logger.info(
+            f"[FS_PATCH] {path} c={patch_stats.chunk_count} r={patch_stats.lines_removed} i={patch_stats.lines_inserted} t={patch_stats.lines_touched}"
+        )
         return f"Patched {path}"
 
 

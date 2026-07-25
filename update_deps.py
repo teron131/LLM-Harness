@@ -39,7 +39,9 @@ def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)  # noqa: S603
 
 
-def _run_with_retry(cmd: list[str], *, attempts: int = 3, delay_seconds: float = 2.0) -> None:
+def _run_with_retry(
+    cmd: list[str], *, attempts: int = 3, delay_seconds: float = 2.0
+) -> None:
     """Run a command with a small retry loop for transient failures."""
     for attempt in range(1, attempts + 1):
         try:
@@ -87,8 +89,16 @@ def main() -> int:
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
     project_deps = _get_list(data, "project", "dependencies")
-    dep_groups: dict[str, list[str]] = data.get("dependency-groups", {}) if isinstance(data.get("dependency-groups"), dict) else {}
-    optional_deps: dict[str, list[str]] = data.get("project", {}).get("optional-dependencies", {}) if isinstance(data.get("project", {}).get("optional-dependencies"), dict) else {}
+    dep_groups: dict[str, list[str]] = (
+        data.get("dependency-groups", {})
+        if isinstance(data.get("dependency-groups"), dict)
+        else {}
+    )
+    optional_deps: dict[str, list[str]] = (
+        data.get("project", {}).get("optional-dependencies", {})
+        if isinstance(data.get("project", {}).get("optional-dependencies"), dict)
+        else {}
+    )
 
     # 1) Project dependencies
     project_names = [n for n in (_requirement_to_name(r) for r in project_deps) if n]
@@ -114,7 +124,9 @@ def main() -> int:
         if not names:
             continue
         _run(["uv", "remove", "--optional", extra, "--no-sync", *names])
-        _run(["uv", "add", "--optional", extra, "--no-sync", "--bounds", "lower", *names])
+        _run(
+            ["uv", "add", "--optional", extra, "--no-sync", "--bounds", "lower", *names]
+        )
 
     # Ensure lockfile and environment are up to date.
     _run(["uv", "lock"])

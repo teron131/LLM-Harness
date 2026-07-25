@@ -171,7 +171,9 @@ def _rank_proximity_bonus(
     gap = abs(artificial_analysis_rank - arena_rank)
     if gap > RANK_PROXIMITY_RADIUS:
         return 0.0
-    return ((RANK_PROXIMITY_RADIUS - gap + 1) / (RANK_PROXIMITY_RADIUS + 1)) * RANK_PROXIMITY_MAX_BONUS
+    return (
+        (RANK_PROXIMITY_RADIUS - gap + 1) / (RANK_PROXIMITY_RADIUS + 1)
+    ) * RANK_PROXIMITY_MAX_BONUS
 
 
 def _common_prefix_length(left: str, right: str) -> int:
@@ -304,7 +306,13 @@ def _qualifier_signals(
 
 def _get_family_anchor_tokens(name: str) -> list[str]:
     """Return family anchor tokens."""
-    tokens = [token for token in _split_tokens(name) if _is_distinctive_token(token) and token not in QUALIFIER_TOKENS and token not in PROVIDER_NOISE_TOKENS]
+    tokens = [
+        token
+        for token in _split_tokens(name)
+        if _is_distinctive_token(token)
+        and token not in QUALIFIER_TOKENS
+        and token not in PROVIDER_NOISE_TOKENS
+    ]
     seen: set[str] = set()
     anchors: list[str] = []
     for token in tokens:
@@ -332,7 +340,11 @@ def _compute_name_similarity(left: str, right: str) -> float:
         1,
         min(len(left_tokens), len(right_tokens)),
     )
-    containment = 1.0 if (left_normalized in right_normalized or right_normalized in left_normalized) else 0.0
+    containment = (
+        1.0
+        if (left_normalized in right_normalized or right_normalized in left_normalized)
+        else 0.0
+    )
     exact = 1.0 if left_normalized == right_normalized else 0.0
     coverage = _distinctive_coverage(left_tokens, right_tokens)
     qualifier_bonus, qualifier_penalty = _qualifier_signals(
@@ -343,13 +355,27 @@ def _compute_name_similarity(left: str, right: str) -> float:
     left_family_anchors = _get_family_anchor_tokens(left)
     right_family_anchors = _get_family_anchor_tokens(right)
     right_family_anchor_set = set(right_family_anchors)
-    family_overlap_count = sum(1 for token in left_family_anchors if token in right_family_anchor_set)
-    family_overlap = family_overlap_count / max(len(left_family_anchors), len(right_family_anchors)) if max(len(left_family_anchors), len(right_family_anchors)) > 0 else 0.0
+    family_overlap_count = sum(
+        1 for token in left_family_anchors if token in right_family_anchor_set
+    )
+    family_overlap = (
+        family_overlap_count / max(len(left_family_anchors), len(right_family_anchors))
+        if max(len(left_family_anchors), len(right_family_anchors)) > 0
+        else 0.0
+    )
     has_family_signal = bool(left_family_anchors and right_family_anchors)
     has_family_overlap = family_overlap_count > 0
 
-    left_version = [value for value in (_to_numeric_token(token) for token in left_tokens) if value is not None][:2]
-    right_version = [value for value in (_to_numeric_token(token) for token in right_tokens) if value is not None][:2]
+    left_version = [
+        value
+        for value in (_to_numeric_token(token) for token in left_tokens)
+        if value is not None
+    ][:2]
+    right_version = [
+        value
+        for value in (_to_numeric_token(token) for token in right_tokens)
+        if value is not None
+    ][:2]
     version_bonus = 0.0
     version_penalty = 0.0
     if left_version or right_version:
@@ -372,7 +398,8 @@ def _compute_name_similarity(left: str, right: str) -> float:
                     else:
                         version_penalty += min(
                             VERSION_MINOR_MISMATCH_PENALTY_MAX,
-                            abs(left_minor - right_minor) * VERSION_MINOR_MISMATCH_PENALTY_SCALE,
+                            abs(left_minor - right_minor)
+                            * VERSION_MINOR_MISMATCH_PENALTY_SCALE,
                         )
 
     left_structured_versions = _extract_structured_versions(left)
@@ -439,7 +466,11 @@ def _has_family_anchor_overlap(
     arena_model_name: str,
 ) -> bool:
     """Return whether family-anchor tokens overlap between the compared rows."""
-    aa_anchors = [token for name in _get_artificial_analysis_names(artificial_analysis_model) for token in _get_family_anchor_tokens(name)]
+    aa_anchors = [
+        token
+        for name in _get_artificial_analysis_names(artificial_analysis_model)
+        for token in _get_family_anchor_tokens(name)
+    ]
     if not aa_anchors:
         return True
     arena_anchor_set = set(_get_family_anchor_tokens(arena_model_name))
@@ -459,9 +490,23 @@ def _compute_candidate_score(
     )
     aa_provider = _get_model_creator_name(artificial_analysis_model)
     aa_provider = aa_provider.lower() if aa_provider else None
-    arena_provider = _provider_prefix(arena_model.get("provider") if isinstance(arena_model.get("provider"), str) else None)
-    provider_match_bonus = PROVIDER_MATCH_REWARD if aa_provider and arena_provider and (aa_provider in arena_provider or arena_provider in aa_provider) else 0.0
-    score = base_score + provider_match_bonus + _rank_proximity_bonus(artificial_analysis_rank, arena_rank)
+    arena_provider = _provider_prefix(
+        arena_model.get("provider")
+        if isinstance(arena_model.get("provider"), str)
+        else None
+    )
+    provider_match_bonus = (
+        PROVIDER_MATCH_REWARD
+        if aa_provider
+        and arena_provider
+        and (aa_provider in arena_provider or arena_provider in aa_provider)
+        else 0.0
+    )
+    score = (
+        base_score
+        + provider_match_bonus
+        + _rank_proximity_bonus(artificial_analysis_rank, arena_rank)
+    )
     return round(score, 4)
 
 
@@ -490,11 +535,18 @@ def _is_accepted_best_candidate_for_rank(
         return False
     if _is_accepted_best_candidate(candidates):
         return True
-    if artificial_analysis_rank is not None and artificial_analysis_rank <= TOP_RANK_PROTECTION_COUNT:
+    if (
+        artificial_analysis_rank is not None
+        and artificial_analysis_rank <= TOP_RANK_PROTECTION_COUNT
+    ):
         if not best or best["score"] < MIN_ACCEPTED_CANDIDATE_SCORE:
             return False
         second = candidates[1] if len(candidates) > 1 else None
-        margin = best["score"] - second["score"] if second is not None else TOP_RANK_PROTECTION_MARGIN
+        margin = (
+            best["score"] - second["score"]
+            if second is not None
+            else TOP_RANK_PROTECTION_MARGIN
+        )
         if margin >= TOP_RANK_PROTECTION_MARGIN:
             return True
     return False
@@ -504,7 +556,11 @@ def _apply_dynamic_void(
     models: list[ImageMatchMappedModel],
 ) -> tuple[float | None, int]:
     """Apply the dynamic void."""
-    scores = sorted(best_match["score"] for model in models if (best_match := model.get("best_match")) is not None)
+    scores = sorted(
+        best_match["score"]
+        for model in models
+        if (best_match := model.get("best_match")) is not None
+    )
     if not scores:
         return None, 0
     min_score = scores[0]
@@ -515,8 +571,14 @@ def _apply_dynamic_void(
         best_match = model.get("best_match")
         score = best_match["score"] if best_match is not None else None
         top_candidate = model["candidates"][0] if model["candidates"] else None
-        second_candidate = model["candidates"][1] if len(model["candidates"]) > 1 else None
-        margin = top_candidate["score"] - second_candidate["score"] if top_candidate is not None and second_candidate is not None else None
+        second_candidate = (
+            model["candidates"][1] if len(model["candidates"]) > 1 else None
+        )
+        margin = (
+            top_candidate["score"] - second_candidate["score"]
+            if top_candidate is not None and second_candidate is not None
+            else None
+        )
         is_protected_top_rank = (
             row_index < TOP_RANK_PROTECTION_COUNT
             and score is not None
@@ -542,7 +604,11 @@ def _map_model(
         [
             {
                 "arena_model": str(arena_model.get("model") or ""),
-                "arena_provider": (arena_model.get("provider") if isinstance(arena_model.get("provider"), str) else None),
+                "arena_provider": (
+                    arena_model.get("provider")
+                    if isinstance(arena_model.get("provider"), str)
+                    else None
+                ),
                 "score": _compute_candidate_score(
                     artificial_analysis_model,
                     arena_model,
@@ -566,8 +632,16 @@ def _map_model(
         else None
     )
     return {
-        "artificial_analysis_slug": (artificial_analysis_model.get("slug") if isinstance(artificial_analysis_model.get("slug"), str) else None),
-        "artificial_analysis_name": (artificial_analysis_model.get("name") if isinstance(artificial_analysis_model.get("name"), str) else None),
+        "artificial_analysis_slug": (
+            artificial_analysis_model.get("slug")
+            if isinstance(artificial_analysis_model.get("slug"), str)
+            else None
+        ),
+        "artificial_analysis_name": (
+            artificial_analysis_model.get("name")
+            if isinstance(artificial_analysis_model.get("name"), str)
+            else None
+        ),
         "artificial_analysis_provider": _get_model_creator_name(
             artificial_analysis_model,
         ),
@@ -601,7 +675,11 @@ def get_image_match_model_mapping(
 
     artificial_analysis_models = artificial_analysis_payload.get("data") or []
     arena_models = arena_payload.get("rows") or []
-    models = [_map_model(model, arena_models, max_candidates, index + 1) for index, model in enumerate(artificial_analysis_models) if isinstance(model, dict)]
+    models = [
+        _map_model(model, arena_models, max_candidates, index + 1)
+        for index, model in enumerate(artificial_analysis_models)
+        if isinstance(model, dict)
+    ]
     void_threshold, voided_count = _apply_dynamic_void(models)
     return {
         "artificial_analysis_fetched_at_epoch_seconds": artificial_analysis_payload.get(

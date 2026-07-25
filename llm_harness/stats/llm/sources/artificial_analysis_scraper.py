@@ -15,7 +15,9 @@ ROW_DETECTION_KEY = "intelligence_index"
 SPARSE_COLUMN_NULL_RATIO = 0.5
 MODEL_SEARCH_BACKTRACK_CHARS = 20_000
 MIN_INTELLIGENCE_COST_TOKEN_THRESHOLD = 1_000_000
-NEXT_FLIGHT_CHUNK_REGEX = re.compile(r'self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)</script>')
+NEXT_FLIGHT_CHUNK_REGEX = re.compile(
+    r'self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)</script>'
+)
 
 EVALUATION_KEY_HINT_REGEX = re.compile(
     r"(index|bench|mmlu|gpqa|hle|aime|math|vision|omniscience|ifbench|gdpval|lcr|arc|musr|humanity)",
@@ -115,17 +117,27 @@ def _pick_intelligence(row: dict[str, Any]) -> dict[str, Any]:
     omniscience_breakdown = _as_record(row.get("omniscience_breakdown"))
     omniscience_total = _as_record(omniscience_breakdown.get("total"))
     intelligence = {
-        "intelligence_index": row.get("intelligence_index") if isinstance(row.get("intelligence_index"), (int, float)) else None,
-        "agentic_index": row.get("agentic_index") if isinstance(row.get("agentic_index"), (int, float)) else None,
-        "coding_index": row.get("coding_index") if isinstance(row.get("coding_index"), (int, float)) else None,
-        "omniscience_index": row.get("omniscience") if isinstance(row.get("omniscience"), (int, float)) else None,
+        "intelligence_index": row.get("intelligence_index")
+        if isinstance(row.get("intelligence_index"), (int, float))
+        else None,
+        "agentic_index": row.get("agentic_index")
+        if isinstance(row.get("agentic_index"), (int, float))
+        else None,
+        "coding_index": row.get("coding_index")
+        if isinstance(row.get("coding_index"), (int, float))
+        else None,
+        "omniscience_index": row.get("omniscience")
+        if isinstance(row.get("omniscience"), (int, float))
+        else None,
         "omniscience_accuracy": None,
         "omniscience_nonhallucination_rate": None,
     }
     if isinstance(omniscience_total.get("accuracy"), (int, float)):
         intelligence["omniscience_accuracy"] = omniscience_total["accuracy"]
     if isinstance(omniscience_total.get("hallucination_rate"), (int, float)):
-        intelligence["omniscience_nonhallucination_rate"] = omniscience_total["hallucination_rate"]
+        intelligence["omniscience_nonhallucination_rate"] = omniscience_total[
+            "hallucination_rate"
+        ]
     return intelligence
 
 
@@ -142,10 +154,26 @@ def _pick_intelligence_index_cost(row: dict[str, Any]) -> dict[str, Any]:
         if isinstance(row.get("input_tokens"), (int, float))
         else None
     )
-    output_tokens = intelligence_token_counts.get("output_tokens") if isinstance(intelligence_token_counts.get("output_tokens"), (int, float)) else None
-    answer_tokens = intelligence_token_counts.get("answer_tokens") if isinstance(intelligence_token_counts.get("answer_tokens"), (int, float)) else None
-    reasoning_tokens = intelligence_token_counts.get("reasoning_tokens") if isinstance(intelligence_token_counts.get("reasoning_tokens"), (int, float)) else None
-    output_from_parts = (answer_tokens or 0) + (reasoning_tokens or 0) if (answer_tokens or 0) + (reasoning_tokens or 0) > 0 else None
+    output_tokens = (
+        intelligence_token_counts.get("output_tokens")
+        if isinstance(intelligence_token_counts.get("output_tokens"), (int, float))
+        else None
+    )
+    answer_tokens = (
+        intelligence_token_counts.get("answer_tokens")
+        if isinstance(intelligence_token_counts.get("answer_tokens"), (int, float))
+        else None
+    )
+    reasoning_tokens = (
+        intelligence_token_counts.get("reasoning_tokens")
+        if isinstance(intelligence_token_counts.get("reasoning_tokens"), (int, float))
+        else None
+    )
+    output_from_parts = (
+        (answer_tokens or 0) + (reasoning_tokens or 0)
+        if (answer_tokens or 0) + (reasoning_tokens or 0) > 0
+        else None
+    )
     total_tokens = (
         output_tokens
         if isinstance(output_tokens, (int, float))
@@ -158,15 +186,26 @@ def _pick_intelligence_index_cost(row: dict[str, Any]) -> dict[str, Any]:
         else None
     )
     return {
-        "input_cost": intelligence_index_cost.get("input_cost") if isinstance(intelligence_index_cost.get("input_cost"), (int, float)) else None,
-        "reasoning_cost": intelligence_index_cost.get("reasoning_cost") if isinstance(intelligence_index_cost.get("reasoning_cost"), (int, float)) else None,
-        "output_cost": intelligence_index_cost.get("output_cost") if isinstance(intelligence_index_cost.get("output_cost"), (int, float)) else None,
-        "total_cost": intelligence_index_cost.get("total_cost") if isinstance(intelligence_index_cost.get("total_cost"), (int, float)) else None,
+        "input_cost": intelligence_index_cost.get("input_cost")
+        if isinstance(intelligence_index_cost.get("input_cost"), (int, float))
+        else None,
+        "reasoning_cost": intelligence_index_cost.get("reasoning_cost")
+        if isinstance(intelligence_index_cost.get("reasoning_cost"), (int, float))
+        else None,
+        "output_cost": intelligence_index_cost.get("output_cost")
+        if isinstance(intelligence_index_cost.get("output_cost"), (int, float))
+        else None,
+        "total_cost": intelligence_index_cost.get("total_cost")
+        if isinstance(intelligence_index_cost.get("total_cost"), (int, float))
+        else None,
         "input_tokens": input_tokens,
         "reasoning_tokens": reasoning_tokens,
         "answer_tokens": answer_tokens,
         "output_tokens": output_tokens,
-        "total_tokens": total_tokens if isinstance(total_tokens, (int, float)) and total_tokens >= MIN_INTELLIGENCE_COST_TOKEN_THRESHOLD else None,
+        "total_tokens": total_tokens
+        if isinstance(total_tokens, (int, float))
+        and total_tokens >= MIN_INTELLIGENCE_COST_TOKEN_THRESHOLD
+        else None,
     }
 
 
@@ -175,13 +214,19 @@ def _normalize_undefined_to_null(value: Any) -> Any:
     if isinstance(value, list):
         return [_normalize_undefined_to_null(item) for item in value]
     if isinstance(value, dict):
-        return {key: _normalize_undefined_to_null(nested_value) for key, nested_value in value.items()}
+        return {
+            key: _normalize_undefined_to_null(nested_value)
+            for key, nested_value in value.items()
+        }
     return value
 
 
 def _extract_flight_corpus(page_html: str) -> str:
     """Extract the flight corpus."""
-    return "\n".join(_decode_flight_chunk(match.group(1) or "") for match in NEXT_FLIGHT_CHUNK_REGEX.finditer(page_html))
+    return "\n".join(
+        _decode_flight_chunk(match.group(1) or "")
+        for match in NEXT_FLIGHT_CHUNK_REGEX.finditer(page_html)
+    )
 
 
 def _find_object_end(corpus: str, start_index: int) -> int:
@@ -236,7 +281,12 @@ def _flatten_expanded_row(row: dict[str, Any]) -> dict[str, Any]:
     timescale_data = _as_record(row.get("timescaleData"))
     response_time_metrics = _as_record(row.get("end_to_end_response_time_metrics"))
     performance_by_prompt_length = row.get("performanceByPromptLength")
-    first_performance_row = _as_record(performance_by_prompt_length[0]) if isinstance(performance_by_prompt_length, list) and performance_by_prompt_length else {}
+    first_performance_row = (
+        _as_record(performance_by_prompt_length[0])
+        if isinstance(performance_by_prompt_length, list)
+        and performance_by_prompt_length
+        else {}
+    )
 
     flattened_row = dict(row)
     for source in (timescale_data, response_time_metrics):
@@ -244,15 +294,25 @@ def _flatten_expanded_row(row: dict[str, Any]) -> dict[str, Any]:
             if flattened_row.get(key) is None and value is not None:
                 flattened_row[key] = value
 
-    if flattened_row.get("prompt_length_type_default") is None and first_performance_row.get("prompt_length_type") is not None:
-        flattened_row["prompt_length_type_default"] = first_performance_row["prompt_length_type"]
+    if (
+        flattened_row.get("prompt_length_type_default") is None
+        and first_performance_row.get("prompt_length_type") is not None
+    ):
+        flattened_row["prompt_length_type_default"] = first_performance_row[
+            "prompt_length_type"
+        ]
 
     return flattened_row
 
 
 def _is_null_like(value: Any) -> bool:
     """Return whether a scraped value should be treated as null-like."""
-    return value is None or value == "" or value == "$undefined" or (isinstance(value, list) and len(value) == 0)
+    return (
+        value is None
+        or value == ""
+        or value == "$undefined"
+        or (isinstance(value, list) and len(value) == 0)
+    )
 
 
 def _drop_mostly_null_columns(
@@ -280,7 +340,14 @@ def _drop_mostly_null_columns(
     if not columns_to_drop:
         return rows
 
-    return [{column: value for column, value in row.items() if column not in columns_to_drop} for row in rows]
+    return [
+        {
+            column: value
+            for column, value in row.items()
+            if column not in columns_to_drop
+        }
+        for row in rows
+    ]
 
 
 def _slugify_provider_name(value: str) -> str:
@@ -290,7 +357,13 @@ def _slugify_provider_name(value: str) -> str:
 
 def _get_provider_slug(row: dict[str, Any], creator: dict[str, Any]) -> str | None:
     """Return provider slug."""
-    provider_name = creator.get("name") if isinstance(creator.get("name"), str) else row.get("provider") if isinstance(row.get("provider"), str) else None
+    provider_name = (
+        creator.get("name")
+        if isinstance(creator.get("name"), str)
+        else row.get("provider")
+        if isinstance(row.get("provider"), str)
+        else None
+    )
     if provider_name is None:
         return None
     return _slugify_provider_name(provider_name)
@@ -301,10 +374,20 @@ def _build_row_selection_context(row: dict[str, Any]) -> dict[str, Any]:
     creator = _as_record(row.get("creator"))
     model_creators = _as_record(row.get("model_creators"))
     provider_slug = _get_provider_slug(row, creator)
-    model_slug = row.get("slug") if isinstance(row.get("slug"), str) and row.get("slug") else None
-    creator_slug = model_creators.get("slug") if isinstance(model_creators.get("slug"), str) and model_creators.get("slug") else provider_slug
+    model_slug = (
+        row.get("slug")
+        if isinstance(row.get("slug"), str) and row.get("slug")
+        else None
+    )
+    creator_slug = (
+        model_creators.get("slug")
+        if isinstance(model_creators.get("slug"), str) and model_creators.get("slug")
+        else provider_slug
+    )
     model_url = row.get("model_url")
-    model_url_slug = model_url.removeprefix("/models/") if isinstance(model_url, str) else None
+    model_url_slug = (
+        model_url.removeprefix("/models/") if isinstance(model_url, str) else None
+    )
     return {
         "creator": creator,
         "model_creators": model_creators,
@@ -362,9 +445,20 @@ def _get_selected_column_value(
             return f"{creator_slug}/{model_url_slug}"
         return model_url_slug or row.get("model_url")
     if column == "name":
-        return row.get("short_name") or row.get("shortName") or row.get("name") or row.get("slug")
+        return (
+            row.get("short_name")
+            or row.get("shortName")
+            or row.get("name")
+            or row.get("slug")
+        )
     if column == "provider":
-        return provider_slug or creator.get("name") or model_creators.get("name") or row.get("model_creator_id") or row.get("creator_name")
+        return (
+            provider_slug
+            or creator.get("name")
+            or model_creators.get("name")
+            or row.get("model_creator_id")
+            or row.get("creator_name")
+        )
     if column == "logo":
         return _to_absolute_aa_logo_url(
             row.get("logo_small_url")
@@ -381,7 +475,11 @@ def _get_selected_column_value(
             or creator.get("logo")
         )
     if column == "attachment":
-        return bool(row.get("input_modality_image") or row.get("input_modality_video") or row.get("input_modality_speech"))
+        return bool(
+            row.get("input_modality_image")
+            or row.get("input_modality_video")
+            or row.get("input_modality_speech")
+        )
     if column in {"reasoning", "reasoning_model"}:
         return _select_reasoning_flag(row)
     if column == "input_modalities":
@@ -389,20 +487,55 @@ def _get_selected_column_value(
     if column == "output_modalities":
         return _select_modalities(row, "output")
     if column == "release_date":
-        return row.get("release_date") if isinstance(row.get("release_date"), str) else None
+        return (
+            row.get("release_date")
+            if isinstance(row.get("release_date"), str)
+            else None
+        )
     if column == "input_tokens":
-        intelligence_token_counts = _as_record(row.get("intelligence_index_token_counts"))
-        return intelligence_token_counts.get("input_tokens") or row.get("total_input_tokens_api") or row.get("input_tokens")
+        intelligence_token_counts = _as_record(
+            row.get("intelligence_index_token_counts")
+        )
+        return (
+            intelligence_token_counts.get("input_tokens")
+            or row.get("total_input_tokens_api")
+            or row.get("input_tokens")
+        )
     if column == "output_tokens":
-        intelligence_token_counts = _as_record(row.get("intelligence_index_token_counts"))
-        answer_tokens = intelligence_token_counts.get("answer_tokens") if isinstance(intelligence_token_counts.get("answer_tokens"), (int, float)) else None
-        reasoning_tokens = intelligence_token_counts.get("reasoning_tokens") if isinstance(intelligence_token_counts.get("reasoning_tokens"), (int, float)) else None
-        output_from_parts = (answer_tokens or 0) + (reasoning_tokens or 0) if (answer_tokens or 0) + (reasoning_tokens or 0) > 0 else None
-        return intelligence_token_counts.get("output_tokens") or output_from_parts or row.get("total_answer_tokens_api") or row.get("output_tokens")
+        intelligence_token_counts = _as_record(
+            row.get("intelligence_index_token_counts")
+        )
+        answer_tokens = (
+            intelligence_token_counts.get("answer_tokens")
+            if isinstance(intelligence_token_counts.get("answer_tokens"), (int, float))
+            else None
+        )
+        reasoning_tokens = (
+            intelligence_token_counts.get("reasoning_tokens")
+            if isinstance(
+                intelligence_token_counts.get("reasoning_tokens"), (int, float)
+            )
+            else None
+        )
+        output_from_parts = (
+            (answer_tokens or 0) + (reasoning_tokens or 0)
+            if (answer_tokens or 0) + (reasoning_tokens or 0) > 0
+            else None
+        )
+        return (
+            intelligence_token_counts.get("output_tokens")
+            or output_from_parts
+            or row.get("total_answer_tokens_api")
+            or row.get("output_tokens")
+        )
     if column == "median_speed":
-        return row.get("median_output_speed") or _as_record(row.get("timescaleData")).get("median_output_speed")
+        return row.get("median_output_speed") or _as_record(
+            row.get("timescaleData")
+        ).get("median_output_speed")
     if column == "median_time":
-        return row.get("median_time_to_first_chunk") or _as_record(row.get("timescaleData")).get("median_time_to_first_chunk")
+        return row.get("median_time_to_first_chunk") or _as_record(
+            row.get("timescaleData")
+        ).get("median_time_to_first_chunk")
     if column == "evaluations":
         return _pick_evaluations(row)
     if column == "intelligence":
@@ -417,7 +550,9 @@ def _select_columns(
     selected_columns: list[str],
 ) -> list[dict[str, Any]]:
     """Select the columns."""
-    keep_columns = [column for column in selected_columns if isinstance(column, str) and column]
+    keep_columns = [
+        column for column in selected_columns if isinstance(column, str) and column
+    ]
     if not keep_columns:
         return rows
 
@@ -498,8 +633,16 @@ def process_artificial_analysis_scraped_rows(
     )
     selected_columns = _get_option(options, "selected_columns", "selectedColumns")
 
-    normalized_rows = [_flatten_expanded_row(row) for row in safe_rows] if should_flatten is not False else safe_rows
-    cleaned_rows = _drop_mostly_null_columns(normalized_rows, SPARSE_COLUMN_NULL_RATIO) if should_drop_mostly_null_columns is not False else normalized_rows
+    normalized_rows = (
+        [_flatten_expanded_row(row) for row in safe_rows]
+        if should_flatten is not False
+        else safe_rows
+    )
+    cleaned_rows = (
+        _drop_mostly_null_columns(normalized_rows, SPARSE_COLUMN_NULL_RATIO)
+        if should_drop_mostly_null_columns is not False
+        else normalized_rows
+    )
     return _select_columns(cleaned_rows, list(selected_columns or []))
 
 
@@ -510,7 +653,9 @@ def get_artificial_analysis_scraped_raw_stats(
     options = options or {}
     try:
         url = options.get("url") or DEFAULT_SCRAPE_URL
-        timeout_ms = _get_option(options, "timeout_ms", "timeoutMs") or DEFAULT_TIMEOUT_MS
+        timeout_ms = (
+            _get_option(options, "timeout_ms", "timeoutMs") or DEFAULT_TIMEOUT_MS
+        )
         with httpx.Client(timeout=float(timeout_ms) / 1000.0) as client:
             response = client.get(url)
         response.raise_for_status()

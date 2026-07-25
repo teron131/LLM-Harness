@@ -78,7 +78,9 @@ class BaseHarnessAgent:
             model=self.model,
             tools=tools or [],
             system_prompt=self.system_prompt,
-            response_format=ToolStrategy(self.response_format) if self.response_format else None,
+            response_format=ToolStrategy(self.response_format)
+            if self.response_format
+            else None,
         )
 
     def _process_response(self, response: dict[str, Any]) -> BaseModel | str:
@@ -134,7 +136,9 @@ class ImageAnalysisAgent(BaseHarnessAgent):
         description: str = "",
     ) -> BaseModel | str:
         """Analyze one or more images with an optional description/prompt."""
-        response = self.agent.invoke({"messages": [MediaMessage(paths=image_paths, description=description)]})
+        response = self.agent.invoke(
+            {"messages": [MediaMessage(paths=image_paths, description=description)]}
+        )
         return self._process_response(response)
 
 

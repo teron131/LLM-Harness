@@ -60,7 +60,9 @@ LLM_STATS_STAGE_CONFIG_MODEL = LlmStatsStageConfigModel(
         weighted_price_output_ratio=0.25,
     ),
 )
-LLM_STATS_STAGE_CONFIG: LlmStatsStageConfig = cast(LlmStatsStageConfig, LLM_STATS_STAGE_CONFIG_MODEL.model_dump())
+LLM_STATS_STAGE_CONFIG: LlmStatsStageConfig = cast(
+    LlmStatsStageConfig, LLM_STATS_STAGE_CONFIG_MODEL.model_dump()
+)
 
 
 def save_model_stats_selected(
@@ -106,7 +108,10 @@ def _build_model_stats_selected_payload(
         speed_output_token_anchors=enriched.get("speed_output_token_anchors") or [],
         scoring_config=LLM_STATS_STAGE_CONFIG.get("scoring"),
     )
-    return cast(ModelStatsSelectedPayload, ModelStatsSelectedPayloadModel.model_validate(payload).model_dump())
+    return cast(
+        ModelStatsSelectedPayload,
+        ModelStatsSelectedPayloadModel.model_validate(payload).model_dump(),
+    )
 
 
 def _get_model_stats_selected_payload(
@@ -122,7 +127,12 @@ def _get_model_stats_selected_payload(
         if use_cache and model_id is None:
             cached_payload = load_model_stats_selected_from_cache(DEFAULT_OUTPUT_PATH)
             if cached_payload is not None:
-                return cast(ModelStatsSelectedPayload, ModelStatsSelectedPayloadModel.model_validate(cached_payload).model_dump())
+                return cast(
+                    ModelStatsSelectedPayload,
+                    ModelStatsSelectedPayloadModel.model_validate(
+                        cached_payload
+                    ).model_dump(),
+                )
         payload = _build_model_stats_selected_payload(model_id=model_id)
         if save_cache and model_id is None:
             save_model_stats_selected(payload, DEFAULT_OUTPUT_PATH)

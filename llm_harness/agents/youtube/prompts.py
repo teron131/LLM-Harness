@@ -32,7 +32,11 @@ def get_gemini_summary_prompt(
 
     # Determine language instruction
     lang_desc = lang_descriptions.get(target_language, target_language)
-    instruction = lang_desc if target_language == "auto" else f"Write ALL output in {lang_desc}. Do not use English or any other language."
+    instruction = (
+        lang_desc
+        if target_language == "auto"
+        else f"Write ALL output in {lang_desc}. Do not use English or any other language."
+    )
 
     language_instruction = f"- OUTPUT LANGUAGE (REQUIRED): {instruction}"
 
